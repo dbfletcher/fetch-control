@@ -1,6 +1,6 @@
 ---
 - name: Deploy Fetch Application Code, Timer, and Nginx
-  hosts: 192.168.50.50
+  hosts: {{ fetch_container_ip }}
   remote_user: root
   tasks:
     - name: Ensure app and media directories exist

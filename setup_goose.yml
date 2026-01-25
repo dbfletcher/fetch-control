@@ -1,6 +1,6 @@
 ---
 - name: Install Goose and Sync Migrations
-  hosts: 192.168.50.50
+  hosts: {{ fetch_container_ip }}
   remote_user: root
   tasks:
     - name: Download Goose binary to global path
