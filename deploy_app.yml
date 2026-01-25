@@ -1,22 +1,40 @@
 ---
-- name: Deploy Fetch Application Code
+- name: Deploy Fetch Application Code and Timer
   hosts: 192.168.50.50
   remote_user: root
   tasks:
-    - name: Ensure app scripts directory exists
+    - name: Ensure app directories exist
       file:
-        path: /opt/fetch-app/scripts
+        path: "{{ item }}"
         state: directory
-        mode: '0755'
+      loop:
+        - /opt/fetch-app/scripts
+        - /var/www/fetch/media/highres
+        - /var/www/fetch/media/lowres
 
-    - name: Copy Python logic to container
+    - name: Copy Python logic
       copy:
         src: scripts/process_images.py
         dest: /opt/fetch-app/scripts/process_images.py
         mode: '0755'
 
+    - name: Copy systemd units
+      copy:
+        src: "scripts/{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+      loop:
+        - fetch-image-worker.service
+        - fetch-image-worker.timer
+
+    - name: Enable and start the timer
+      systemd:
+        name: fetch-image-worker.timer
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
     - name: Commit deployment record to Git
       delegate_to: localhost
       shell: |
         git add .
-        git commit -m "Deploying latest image processing scripts" || exit 0
+        git commit -m "Added systemd timer for automated image processing" || exit 0

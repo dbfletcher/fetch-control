@@ -1,0 +1,9 @@
+[Unit]
+Description=Fetch Project Image Processing Worker
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/fetch-app
+ExecStart=/opt/fetch-app/.venv/bin/python /opt/fetch-app/scripts/process_images.py
