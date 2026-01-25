@@ -1,0 +1,21 @@
+---
+- name: Install Goose and Sync Migrations
+  hosts: 192.168.50.50
+  remote_user: root
+  tasks:
+    - name: Download Goose binary to global path
+      get_url:
+        url: https://github.com/pressly/goose/releases/download/v3.18.0/goose_linux_x86_64
+        dest: /usr/local/bin/goose
+        mode: '0755'
+
+    - name: Ensure migrations directory exists
+      file:
+        path: /opt/fetch-app/migrations
+        state: directory
+        mode: '0755'
+
+    - name: Copy migration files to container
+      copy:
+        src: migrations/
+        dest: /opt/fetch-app/migrations/

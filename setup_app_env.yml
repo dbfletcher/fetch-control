@@ -1,0 +1,36 @@
+---
+- name: Setup Fetch Database and Media Folders
+  hosts: all
+  remote_user: root
+  vars:
+    db_name: "fetch_db"
+    db_user: "fetch_admin"
+    db_pass: "fetch_password_change_me" # We can harden this later
+
+  tasks:
+    - name: Create the Fetch Database
+      community.mysql.mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create the Database User
+      community.mysql.mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create Dual-Resolution Media Directory Structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      loop:
+        - /var/www/fetch
+        - /var/www/fetch/media
+        - /var/www/fetch/media/highres
+        - /var/www/fetch/media/lowres

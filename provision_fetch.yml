@@ -1,0 +1,47 @@
+---
+- name: Nuke and Pave Fetch Infrastructure
+  hosts: localhost
+  connection: local
+  vars:
+    pve_api_host: "192.168.50.21"
+    pve_api_user: "root@pam"
+    pve_api_token_id: "fetch-prov"
+    #pve_api_token_secret: "a82bfeaf-549a-4db4-8912-eafbaf74a274"
+    pve_api_token_secret: "ba932eb7-eefb-4a37-8689-e977a4d9e733"
+    lxc_vmid: 305
+    lxc_node: "fcs-pve1"
+    # This is the industry-standard Volume ID format
+    lxc_template: "deb12fetch.tar.zst"
+    #lxc_template: "asus-pios-samba:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst"
+    #lxc_template: "local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst"
+
+  tasks:
+    - name: NUKE - Ensure ID 305 is clear
+      community.proxmox.proxmox:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        vmid: "{{ lxc_vmid }}"
+        state: absent
+        validate_certs: no
+
+    - name: PAVE - Create fresh 20GB Fetch LXC
+      community.proxmox.proxmox:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        vmid: "{{ lxc_vmid }}"
+        node: "{{ lxc_node }}"
+        hostname: fetch-app
+        ostemplate: "{{ lxc_template }}"
+        storage: "local-lvm"
+        disk: 20
+        memory: 1024
+        unprivileged: yes
+        # bridge set to vmbr1 as requested
+        netif: '{"net0":"name=eth0,bridge=vmbr1,ip=192.168.50.50/24,gw=192.168.50.1"}'
+        state: present
+        validate_certs: no
+

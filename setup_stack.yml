@@ -1,0 +1,26 @@
+---
+- name: Install Fetch Base Stack
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install MariaDB, Nginx, and Python dependencies
+      apt:
+        name:
+          - mariadb-server
+          - nginx
+          - python3-pip
+          - python3-pymysql
+        state: present
+
+    - name: Ensure MariaDB and Nginx are running
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - mariadb
+        - nginx

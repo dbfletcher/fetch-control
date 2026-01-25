@@ -1,0 +1,29 @@
+---
+- name: Setup App Python Environment
+  hosts: all
+  remote_user: root
+  tasks:
+    - name: Install Python build dependencies
+      apt:
+        name:
+          - python3-venv
+          - libjpeg-dev
+          - zlib1g-dev
+        state: present
+
+    - name: Create app directory
+      file:
+        path: /opt/fetch-app
+        state: directory
+        mode: '0755'
+
+    - name: Create virtual environment
+      shell: /usr/local/bin/uv venv
+      args:
+        chdir: /opt/fetch-app
+        creates: /opt/fetch-app/.venv
+
+    - name: Install application core dependencies
+      shell: /usr/local/bin/uv pip install Pillow pymysql sqlalchemy fastapi uvicorn
+      args:
+        chdir: /opt/fetch-app
