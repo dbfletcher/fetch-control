@@ -1,12 +1,15 @@
 ---
-- name: Deploy Fetch Application Code and Timer
+- name: Deploy Fetch Application Code, Timer, and Nginx
   hosts: 192.168.50.50
   remote_user: root
   tasks:
-    - name: Ensure app directories exist
+    - name: Ensure app and media directories exist
       file:
         path: "{{ item }}"
         state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
       loop:
         - /opt/fetch-app/scripts
         - /var/www/fetch/media/highres
@@ -17,6 +20,44 @@
         src: scripts/process_images.py
         dest: /opt/fetch-app/scripts/process_images.py
         mode: '0755'
+
+    - name: Deploy Nginx Site Configuration
+      copy:
+        dest: /etc/nginx/sites-available/fetch
+        content: |
+          server {
+              listen 80;
+              server_name _;
+              root /var/www/fetch;
+              location / {
+                  autoindex on;
+                  autoindex_exact_size off;
+                  autoindex_format html;
+                  autoindex_localtime on;
+              }
+              location /media/ {
+                  autoindex on;
+              }
+          }
+      register: nginx_config
+
+    - name: Disable default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Enable Fetch Nginx site
+      file:
+        src: /etc/nginx/sites-available/fetch
+        dest: /etc/nginx/sites-enabled/fetch
+        state: link
+        force: yes
+
+    - name: Restart Nginx if config changed
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_config.changed
 
     - name: Copy systemd units
       copy:
@@ -37,4 +78,5 @@
       delegate_to: localhost
       shell: |
         git add .
-        git commit -m "Added systemd timer for automated image processing" || exit 0
+        git commit -m "Full stack deployment: Nginx, Scripts, and Timers" || exit 0
+      ignore_errors: yes
