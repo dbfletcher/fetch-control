@@ -1,0 +1,22 @@
+---
+- name: Deploy Fetch Application Code
+  hosts: 192.168.50.50
+  remote_user: root
+  tasks:
+    - name: Ensure app scripts directory exists
+      file:
+        path: /opt/fetch-app/scripts
+        state: directory
+        mode: '0755'
+
+    - name: Copy Python logic to container
+      copy:
+        src: scripts/process_images.py
+        dest: /opt/fetch-app/scripts/process_images.py
+        mode: '0755'
+
+    - name: Commit deployment record to Git
+      delegate_to: localhost
+      shell: |
+        git add .
+        git commit -m "Deploying latest image processing scripts" || exit 0
