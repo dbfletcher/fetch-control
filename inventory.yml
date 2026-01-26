@@ -1,0 +1,5 @@
+all:
+  hosts:
+    fetch_app:
+      ansible_host: 192.168.50.60
+      ansible_user: root

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Fetch Image Worker every minute
+
+[Timer]
+OnCalendar=*:0/1
+Unit=fetch-image-worker.service
+
+[Install]
+WantedBy=timers.target

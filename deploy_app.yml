@@ -1,28 +1,59 @@
 ---
-- name: Deploy Fetch Application Code, Timer, and Nginx
-  hosts: {{ fetch_container_ip }}
+- name: Deploy Project Fetch (App, Nginx, and Worker)
+  hosts: fetch_app
   remote_user: root
   tasks:
     - name: Ensure app and media directories exist
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         owner: www-data
         group: www-data
         mode: '0755'
       loop:
+        - /root/fetch-app/templates
         - /opt/fetch-app/scripts
         - /var/www/fetch/media/highres
         - /var/www/fetch/media/lowres
 
-    - name: Copy Python logic
-      copy:
+    - name: Ensure uv is installed on the container
+      ansible.builtin.shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+      args:
+        creates: /root/.local/bin/uv
+
+    - name: Find uv binary path
+      ansible.builtin.command: which uv
+      register: uv_path
+      changed_when: false
+      failed_when: uv_path.rc != 0
+
+    - name: Sync FastAPI Application Files
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: '0644'
+      loop:
+        - { src: 'main.py', dest: '/root/fetch-app/main.py' }
+        - { src: 'templates/dashboard.html', dest: '/root/fetch-app/templates/dashboard.html' }
+        - { src: 'pyproject.toml', dest: '/root/fetch-app/pyproject.toml' }
+        - { src: 'uv.lock', dest: '/root/fetch-app/uv.lock' }
+      notify: Restart Fetch
+
+    - name: Sync uv environment (uv sync)
+      ansible.builtin.command:
+        cmd: "{{ uv_path.stdout }} sync"
+        chdir: /root/fetch-app
+      register: uv_sync_result
+      changed_when: "'Successfully' in uv_sync_result.stdout"
+
+    - name: Deploy Image Worker Script
+      ansible.builtin.copy:
         src: scripts/process_images.py
         dest: /opt/fetch-app/scripts/process_images.py
         mode: '0755'
 
     - name: Deploy Nginx Site Configuration
-      copy:
+      ansible.builtin.copy:
         dest: /etc/nginx/sites-available/fetch
         content: |
           server {
@@ -42,41 +73,56 @@
       register: nginx_config
 
     - name: Disable default Nginx site
-      file:
+      ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
 
     - name: Enable Fetch Nginx site
-      file:
+      ansible.builtin.file:
         src: /etc/nginx/sites-available/fetch
         dest: /etc/nginx/sites-enabled/fetch
         state: link
         force: yes
 
     - name: Restart Nginx if config changed
-      service:
+      ansible.builtin.service:
         name: nginx
         state: restarted
       when: nginx_config.changed
 
-    - name: Copy systemd units
-      copy:
-        src: "scripts/{{ item }}"
+    - name: Deploy Systemd Units from templates
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
         dest: "/etc/systemd/system/{{ item }}"
+        mode: '0644'
       loop:
+        - fetch.service
         - fetch-image-worker.service
         - fetch-image-worker.timer
+      notify: Reload Systemd
 
-    - name: Enable and start the timer
-      systemd:
-        name: fetch-image-worker.timer
-        enabled: yes
+    - name: Ensure Services are Running and Enabled
+      ansible.builtin.systemd:
+        name: "{{ item }}"
         state: started
-        daemon_reload: yes
+        enabled: yes
+      loop:
+        - fetch
+        - fetch-image-worker.timer
 
     - name: Commit deployment record to Git
       delegate_to: localhost
-      shell: |
+      ansible.builtin.shell: |
         git add .
-        git commit -m "Full stack deployment: Nginx, Scripts, and Timers" || exit 0
+        git commit -m "Automated Deploy: Finalized paths and uv binary discovery" || exit 0
       ignore_errors: yes
+
+  handlers:
+    - name: Reload Systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Restart Fetch
+      ansible.builtin.systemd:
+        name: fetch
+        state: restarted
