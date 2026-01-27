@@ -18,16 +18,17 @@ database = Database(DATABASE_URL)
 app = FastAPI(title="Project Fetch")
 templates = Jinja2Templates(directory="templates")
 
-# Path Alignment with Doug's Indiana, PA lab structure
+# Path Alignment with Doug's lab structure
 BASE_MEDIA_PATH = "/var/www/fetch/media"
 HIGHRES_DIR = os.path.join(BASE_MEDIA_PATH, "highres")
 LOWRES_DIR = os.path.join(BASE_MEDIA_PATH, "lowres")
 
-# Ensure physical paths exist on the host
+# Ensure physical paths exist on the host container
 os.makedirs(HIGHRES_DIR, exist_ok=True)
 os.makedirs(LOWRES_DIR, exist_ok=True)
 
 # Mount the media directories for browser access
+# /highres allows viewing full photos; /lowres provides dashboard thumbnails
 app.mount("/highres", StaticFiles(directory=HIGHRES_DIR), name="highres")
 app.mount("/lowres", StaticFiles(directory=LOWRES_DIR), name="lowres")
 
@@ -57,15 +58,15 @@ async def get_user_households(email: str):
     return await database.fetch_all(query=query, values={"email": email})
 
 def process_and_save_image(file_content, target_path):
-    """Physically rotates image based on EXIF and saves it."""
+    """Physically rotates image based on EXIF and saves to disk."""
     img = Image.open(io.BytesIO(file_content))
-    # Physically rotate the pixels based on the camera orientation
+    # Corrects portrait orientation issues from smartphone cameras
     img = ImageOps.exif_transpose(img)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     img.save(target_path, "JPEG", quality=95)
 
-# --- Main Dashboard Routes ---
+# --- Navigation & Dashboard Routes ---
 
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
@@ -89,8 +90,10 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
+    # Fetch physical areas for this household
     locations = await database.fetch_all("SELECT * FROM locations WHERE household_id = :hid", {"hid": household_id})
     
+    # Fetch bins with their area names via LEFT JOIN
     bin_query = """
         SELECT b.*, l.name as location_name 
         FROM bin b 
@@ -99,12 +102,14 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     """
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
     
+    # Fetch all items belonging to these bins
     items = await database.fetch_all("""
         SELECT i.* FROM items i 
         JOIN bin b ON i.bin_id = b.id 
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
+    # Total inventory value calculation
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
 
     return templates.TemplateResponse("dashboard.html", {
@@ -131,7 +136,7 @@ async def add_location(household_id: int, name: str = Form(...), email: str = De
 
 @app.post("/delete-location/{location_id}")
 async def delete_location(location_id: int, force: bool = Form(False), email: str = Depends(get_current_user_email)):
-    """Deletes location. Requires 'force' if bins exist."""
+    """Deletes an area. Rejects if bins exist unless 'force' is used."""
     loc = await database.fetch_one("SELECT household_id, name FROM locations WHERE id = :lid", {"lid": location_id})
     if not loc: raise HTTPException(status_code=404)
     
@@ -156,7 +161,7 @@ async def add_bin(household_id: int, name: str = Form(...), location_id: str = F
 
 @app.post("/edit-bin/{bin_id}")
 async def edit_bin(bin_id: int, name: str = Form(...), location_id: str = Form(None), parent_bin_id: str = Form(None), email: str = Depends(get_current_user_email)):
-    """Updates bin details and hierarchy."""
+    """Updates bin metadata and hierarchy."""
     check = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
     if not check: raise HTTPException(status_code=403)
 
@@ -179,11 +184,12 @@ async def upload_location_photo(bin_id: int, file: UploadFile = File(...), email
 
 @app.post("/delete-location-photo/{bin_id}")
 async def delete_location_photo(bin_id: int, email: str = Depends(get_current_user_email)):
+    """Deletes bin photo and its lowres version."""
     res = await database.fetch_one("SELECT household_id, location_image FROM bin WHERE id = :bid", {"bid": bin_id})
     if res and res['location_image']:
-        for d in [HIGHRES_DIR, LOWRES_DIR]:
-            p = os.path.join(d, res['location_image'])
-            if os.path.exists(p): os.remove(p)
+        for folder in [HIGHRES_DIR, LOWRES_DIR]:
+            path = os.path.join(folder, res['location_image'])
+            if os.path.exists(path): os.remove(path)
     await database.execute("UPDATE bin SET location_image = NULL WHERE id = :bid", {"bid": bin_id})
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
 
@@ -225,7 +231,9 @@ async def edit_item(
     image: UploadFile = File(None),
     email: str = Depends(get_current_user_email)
 ):
+    """Updates metadata and fixes photo orientation."""
     check = await database.fetch_one("SELECT b.household_id, i.high_res_image FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", {"iid": item_id})
+    
     filename = check['high_res_image']
     if image and image.filename:
         filename = f"item_{uuid.uuid4()}.jpg"
@@ -239,12 +247,23 @@ async def edit_item(
     await database.execute(query, {"n": name, "q": quantity, "p": price, "d": description, "u": item_url, "img": filename, "iid": item_id})
     return RedirectResponse(url=f"/bins/{check['household_id']}", status_code=303)
 
+@app.post("/delete-item-photo/{item_id}")
+async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):
+    """Removes part photo from disk and database."""
+    res = await database.fetch_one("SELECT b.household_id, i.high_res_image FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", {"iid": item_id})
+    if res and res['high_res_image']:
+        for folder in [HIGHRES_DIR, LOWRES_DIR]:
+            path = os.path.join(folder, res['high_res_image'])
+            if os.path.exists(path): os.remove(path)
+    await database.execute("UPDATE items SET high_res_image = NULL WHERE id = :iid", {"iid": item_id})
+    return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
+
 @app.post("/delete-item/{item_id}")
 async def delete_item(item_id: int, email: str = Depends(get_current_user_email)):
     res = await database.fetch_one("SELECT b.household_id, i.high_res_image FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", {"iid": item_id})
     if res['high_res_image']:
-        for d in [HIGHRES_DIR, LOWRES_DIR]:
-            p = os.path.join(d, res['high_res_image'])
-            if os.path.exists(p): os.remove(p)
+        for folder in [HIGHRES_DIR, LOWRES_DIR]:
+            path = os.path.join(folder, res['high_res_image'])
+            if os.path.exists(path): os.remove(path)
     await database.execute("DELETE FROM items WHERE id = :iid", {"iid": item_id})
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
