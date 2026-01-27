@@ -142,7 +142,7 @@
                         </form>
                     {% else %}
                         <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data" style="padding:40px; text-align:center;">
-                            <input type="file" name="file" accept="image/*" onchange="this.form.submit()" id="up-{{ bin.id }}" style="display:none;">
+                            <input type="file" name="file" accept="image/*" capture="environment" onchange="this.form.submit()" id="up-{{ bin.id }}" style="display:none;">
                             <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold;">+ Add Photo</label>
                         </form>
                     {% endif %}
@@ -201,7 +201,7 @@
                                 </div>
                                 <input type="url" name="item_url" value="{{ item.item_url or '' }}" placeholder="Amazon/McMaster URL" style="width:100%; margin-bottom:10px; padding:8px;">
                                 <textarea name="description" placeholder="Technical Specs" style="width:100%; height:60px; margin-bottom:10px; padding:5px;">{{ item.description or '' }}</textarea>
-                                <div style="margin-bottom:15px;"><label style="font-size:0.7em; color:#888;">Update Photo</label><input type="file" name="image" accept="image/*" style="font-size:0.8em; margin-top:5px;"></div>
+                                <div style="margin-bottom:15px;"><label style="font-size:0.7em; color:#888;">Update Photo</label><input type="file" name="image" accept="image/*" capture="environment" style="font-size:0.8em; margin-top:5px;"></div>
                                 <div style="display:flex; gap:10px;">
                                     <button type="submit" class="btn-save">Update</button>
                                     <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button>
