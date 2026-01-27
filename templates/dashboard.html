@@ -145,7 +145,9 @@
                         <a href="/highres/{{ bin.location_image }}" target="_blank">
                             <img src="/lowres/{{ bin.location_image }}" title="Click for High-res">
                         </a>
-                        <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;">
+                        <form action="/delete-location-photo/{{ bin.id }}" method="post" 
+                              style="position:absolute; top:8px; right:8px;" 
+                              onsubmit="return confirm('Are you sure you want to delete the bin photo?')">
                             <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
                         </form>
                     {% else %}
