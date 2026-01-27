@@ -176,16 +176,28 @@
                     </div>
                     <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
                         <form action="/edit-bin/{{ bin.id }}" method="post">
-                            <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px;">
-                            <select name="location_id" style="width:100%; margin-bottom:15px; padding:8px;">
+                            <label style="font-size: 0.8em; font-weight: bold; color: #666;">Bin Name</label>
+                            <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                            
+                            <label style="font-size: 0.8em; font-weight: bold; color: #666;">Location</label>
+                            <select name="location_id" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
                                 <option value="None">-- No Area --</option>
                                 {% for loc in locations %}<option value="{{ loc.id }}" {% if bin.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
                             </select>
-                            <div style="display:flex; gap:10px;">
+                            
+                            <div style="display:flex; gap:10px; margin-bottom: 15px;">
                                 <button type="submit" class="btn-save">Update</button>
-                                <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button>
+                                <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer;">Cancel</button>
                             </div>
                         </form>
+
+                        <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                            <form action="/delete-bin/{{ bin.id }}" method="post" onsubmit="return confirm('⚠️ WARNING: Deleting this bin will also delete records for all items inside. Are you sure?')">
+                                <button type="submit" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer; font-weight:bold;">
+                                    🗑️ Delete Entire Bin
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     {% for item in items if item.bin_id == bin.id %}

@@ -227,6 +227,18 @@ async def delete_location_photo(bin_id: int, email: str = Depends(get_current_us
     await database.execute("UPDATE bin SET location_image = NULL WHERE id = :bid", {"bid": bin_id})
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
 
+@app.post("/delete-bin/{bin_id}")
+async def delete_bin(bin_id: int):
+    """Deletes a bin and cascades to items."""
+    # First, delete all items belonging to this bin to maintain integrity
+    await database.execute("DELETE FROM items WHERE bin_id = :bid", {"bid": bin_id})
+    
+    # Then delete the bin itself
+    await database.execute("DELETE FROM bin WHERE id = :bid", {"bid": bin_id})
+    
+    # Redirect back to the dashboard (using a default household ID or referrer)
+    return RedirectResponse(url="/", status_code=303)
+
 # --- Item (Part) Management ---
 
 @app.post("/add-item/{bin_id}")
