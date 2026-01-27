@@ -142,6 +142,11 @@
 
         <div class="bin-grid">
             {% for bin in bins if not bin.parent_bin_id %}
+                {# Check if this bin has any items #}
+                {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
+                
+                {# Only show if it's NOT the Unassigned bin, OR if it has items #}
+                {% if bin.name != 'Unassigned' or bin_items | length > 0 %}
             <div class="bin-card">
                 <div class="bin-photo-container">
                     {% if bin.location_image %}
