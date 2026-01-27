@@ -3,6 +3,8 @@
 <head>
     <title>Project Fetch</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { --sidebar-bg: #2c3e50; --primary: #3498db; --accent: #27ae60; --danger: #e74c3c; --sidebar-width: 280px; }
@@ -153,7 +155,7 @@
                         </form>
                     {% else %}
                         <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data" style="padding:40px; text-align:center;">
-                            <input type="file" name="file" accept="image/*" capture="environment" onchange="this.form.submit()" id="up-{{ bin.id }}" style="display:none;">
+                            <input type="file" name="file" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="up-{{ bin.id }}" style="display:none;">
                             <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold;">+ Add Photo</label>
                         </form>
                     {% endif %}
@@ -253,41 +255,42 @@
             {% endfor %}
         </div>
     </div>
+
+    <div id="cropModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:2000; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="width:90%; max-height:70vh; margin-bottom:20px;">
+            <img id="imageToCrop" style="max-width:100%; display:block;">
+        </div>
+        <div style="display:flex; gap:20px;">
+            <button onclick="cancelCrop()" style="padding:15px 30px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold;">Cancel</button>
+            <button onclick="executeCrop()" style="padding:15px 30px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold;">Save & Upload</button>
+        </div>
+    </div>
+
     <script>
+        let cropper;
+        let currentForm;
+
         function toggleSidebar() {
             const s = document.getElementById('sidebar');
             const m = document.getElementById('mainContent');
-            if (window.innerWidth <= 768) { s.classList.toggle('active'); } 
+            if (window.innerWidth <= 768) { s.classList.toggle('active'); }
             else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); }
         }
+
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const cards = document.getElementsByClassName('bin-card');
-
             for (let card of cards) {
-                // Search bin names and all part rows within the card
                 const text = card.innerText.toLowerCase();
-                if (text.includes(input)) {
-                    card.style.display = "";
-                } else {
-                    card.style.display = "none";
-                }
+                card.style.display = text.includes(input) ? "" : "none";
             }
         }
+
         function generateQR(binId, binName) {
             const qrContainer = document.getElementById(`qr-${binId}`);
-            qrContainer.innerHTML = ""; // Clear previous
-            
-            // Link to the specific mobile-friendly view
+            qrContainer.innerHTML = "";
             const binUrl = `${window.location.origin}/bins/view/${binId}`;
-            
-            new QRCode(qrContainer, {
-                text: binUrl,
-                width: 128,
-                height: 128
-            });
-
-            // Delay for rendering before opening print window
+            new QRCode(qrContainer, { text: binUrl, width: 128, height: 128 });
             setTimeout(() => {
                 const imgData = qrContainer.querySelector('img').src;
                 const printWindow = window.open('', '_blank');
@@ -303,6 +306,37 @@
                     </html>
                 `);
             }, 500);
+        }
+
+        // --- Image Cropping Functions ---
+        function handleFileSelect(input, form) {
+            const file = input.files[0];
+            if (!file) return;
+            currentForm = form;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('imageToCrop');
+                img.src = e.target.result;
+                document.getElementById('cropModal').style.display = 'flex';
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(img, { aspectRatio: NaN, viewMode: 1, dragMode: 'move' });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function executeCrop() {
+            const canvas = cropper.getCroppedCanvas({ width: 1200, height: 1200 });
+            canvas.toBlob((blob) => {
+                const formData = new FormData(currentForm);
+                formData.set('file', blob, 'cropped_image.jpg');
+                fetch(currentForm.action, { method: 'POST', body: formData })
+                .then(() => { window.location.reload(); });
+            }, 'image/jpeg', 0.9);
+        }
+
+        function cancelCrop() {
+            document.getElementById('cropModal').style.display = 'none';
+            if (cropper) cropper.destroy();
         }
     </script>
 </body>
