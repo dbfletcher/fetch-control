@@ -37,6 +37,7 @@
         - { src: 'templates/dashboard.html', dest: '/root/fetch-app/templates/dashboard.html' }
         - { src: 'pyproject.toml', dest: '/root/fetch-app/pyproject.toml' }
         - { src: 'uv.lock', dest: '/root/fetch-app/uv.lock' }
+        - { src: 'templates/bin_view.html', dest: '/root/fetch-app/templates/bin_view.html' }
       notify: Restart Fetch
 
     - name: Deploy Maintenance Utilities

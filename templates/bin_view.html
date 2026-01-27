@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bin View: {{ bin.name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        :root { --primary: #3498db; --accent: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; color: #333; }
+        .header { background: white; padding: 15px 20px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 10; }
+        .container { max-width: 600px; margin: 0 auto; padding: 15px; }
+        
+        .bin-photo { width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .item-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; border: 1px solid #e1e4e8; }
+        .item-thumb { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; margin-right: 15px; background: #eee; }
+        
+        .badge { background: #eee; padding: 4px 10px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .price { color: var(--accent); font-weight: bold; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2 style="margin:0;">{{ bin.name }}</h2>
+        {% if bin.location_name %}<span style="font-size: 0.8em; color: #666;">📍 {{ bin.location_name }}</span>{% endif %}
+    </div>
+
+    <div class="container">
+        {% if bin.location_image %}
+            <img src="/lowres/{{ bin.location_image }}" class="bin-photo">
+        {% endif %}
+
+        <h3 style="margin-bottom: 15px;">Parts in this Bin</h3>
+        {% for item in items %}
+            <div class="item-card">
+                {% if item.high_res_image %}
+                    <img src="/lowres/{{ item.high_res_image }}" class="item-thumb">
+                {% else %}
+                    <div class="item-thumb" style="display: flex; align-items: center; justify-content: center; font-size: 1.5em;">📦</div>
+                {% endif %}
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: bold;">{{ item.quantity }}x {{ item.name }}</div>
+                    <div class="price">${{ "{:.2f}".format(item.price) }}</div>
+                    {% if item.description %}
+                        <div style="font-size: 0.8em; color: #666; margin-top: 4px;">{{ item.description }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #888; margin-top: 30px;">This bin is currently empty.</p>
+        {% endfor %}
+        
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="/bins/{{ bin.household_id }}" style="color: var(--primary); text-decoration: none; font-weight: bold;">← Back to Full Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>
