@@ -129,6 +129,13 @@
             </div>
         </div>
 
+        <div class="top-bar">
+            <button onclick="toggleSidebar()" ...>☰</button>
+            <input type="text" id="globalSearch" placeholder="Search parts or bins..." 
+                   onkeyup="filterInventory()" 
+                   style="flex-grow: 1; max-width: 400px; padding: 10px; border-radius: 20px; border: 1px solid #ddd; margin: 0 15px;">
+            <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
+
         <div class="bin-grid">
             {% for bin in bins if not bin.parent_bin_id %}
             <div class="bin-card">
@@ -242,6 +249,20 @@
             const m = document.getElementById('mainContent');
             if (window.innerWidth <= 768) { s.classList.toggle('active'); } 
             else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); }
+        }
+        function filterInventory() {
+            const input = document.getElementById('globalSearch').value.toLowerCase();
+            const cards = document.getElementsByClassName('bin-card');
+
+            for (let card of cards) {
+                // Search bin names and all part rows within the card
+                const text = card.innerText.toLowerCase();
+                if (text.includes(input)) {
+                    card.style.display = "";
+                } else {
+                    card.style.display = "none";
+                }
+            }
         }
     </script>
 </body>
