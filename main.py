@@ -75,6 +75,11 @@ def process_and_save_image(file_content, filename):
 
 # --- Navigation & Dashboard Routes ---
 
+@app.get("/health")
+async def health_check():
+    """Public endpoint for automated health monitoring."""
+    return {"status": "ok"}
+
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
