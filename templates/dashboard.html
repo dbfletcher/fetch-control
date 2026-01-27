@@ -325,12 +325,20 @@
         }
 
         function executeCrop() {
-            const canvas = cropper.getCroppedCanvas({ width: 1200, height: 1200 });
+            // Disable the button to prevent double-taps
+            const saveBtn = event.target;
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Uploading...";
+
+            const canvas = cropper.getCroppedCanvas({ 
+                width: 1000,  // Slightly smaller, faster to process
+                height: 1000, 
+                imageSmoothingQuality: 'medium' 
+            });
+
             canvas.toBlob((blob) => {
                 const formData = new FormData(currentForm);
                 
-                // --- Logic to handle different backend parameter names ---
-                // Bin uploads use 'file', Item uploads use 'image'
                 if (currentForm.action.includes('add-item') || currentForm.action.includes('edit-item')) {
                     formData.set('image', blob, 'cropped_image.jpg');
                 } else {
@@ -338,8 +346,15 @@
                 }
 
                 fetch(currentForm.action, { method: 'POST', body: formData })
-                .then(() => { window.location.reload(); });
-            }, 'image/jpeg', 0.9);
+                .then(() => { 
+                    window.location.reload(); 
+                })
+                .catch(err => {
+                    alert("Upload failed. Check Nginx logs.");
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = "Save & Upload";
+                });
+            }, 'image/jpeg', 0.7); // 0.7 quality provides a massive speed boost
         }
 
         function cancelCrop() {
