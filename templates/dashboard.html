@@ -233,6 +233,14 @@
                                 </div>
                                 <input type="url" name="item_url" value="{{ item.item_url or '' }}" placeholder="Amazon/McMaster URL" style="width:100%; margin-bottom:10px; padding:8px;">
                                 <textarea name="description" placeholder="Technical Specs" style="width:100%; height:60px; margin-bottom:10px; padding:5px;">{{ item.description or '' }}</textarea>
+                                <label style="display:block; margin-bottom:5px; font-weight:bold;">Move to Bin:</label>
+                                <select name="new_bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
+                                    {% for b in bins %}
+                                        <option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>
+                                            {{ b.name }} {% if b.location_name %}(📍 {{ b.location_name }}){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
                                 <div style="margin-bottom:15px;"><label style="font-size:0.7em; color:#888;">Update Photo</label><input type="file" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;"></div>
                                 <div style="display:flex; gap:10px;">
                                     <button type="submit" class="btn-save">Update</button>
