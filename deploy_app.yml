@@ -97,8 +97,6 @@
         mode: '0644'
       loop:
         - fetch.service
-        - fetch-image-worker.service
-        - fetch-image-worker.timer
       notify: Reload Systemd
 
     - name: Ensure Services are Running and Enabled

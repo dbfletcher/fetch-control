@@ -57,14 +57,21 @@ async def get_user_households(email: str):
     """
     return await database.fetch_all(query=query, values={"email": email})
 
-def process_and_save_image(file_content, target_path):
-    """Physically rotates image based on EXIF and saves to disk."""
+def process_and_save_image(file_content, filename):
+    # 1. Process High-Res
     img = Image.open(io.BytesIO(file_content))
-    # Corrects portrait orientation issues from smartphone cameras
-    img = ImageOps.exif_transpose(img)
+    img = ImageOps.exif_transpose(img) # Fix orientation
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
-    img.save(target_path, "JPEG", quality=95)
+    
+    # Save High-Res
+    high_res_path = os.path.join(HIGHRES_DIR, filename)
+    img.save(high_res_path, "JPEG", quality=95)
+
+    # 2. Process Low-Res (Thumbnail)
+    img.thumbnail((400, 400)) # Maintain aspect ratio
+    low_res_path = os.path.join(LOWRES_DIR, filename)
+    img.save(low_res_path, "JPEG", quality=80)
 
 # --- Navigation & Dashboard Routes ---
 
@@ -178,7 +185,7 @@ async def upload_location_photo(bin_id: int, file: UploadFile = File(...), email
     check = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
     filename = f"bin_{uuid.uuid4()}.jpg"
     content = await file.read()
-    process_and_save_image(content, os.path.join(HIGHRES_DIR, filename))
+    process_and_save_image(content, filename)
     await database.execute("UPDATE bin SET location_image = :img WHERE id = :bid", {"img": filename, "bid": bin_id})
     return RedirectResponse(url=f"/bins/{check['household_id']}", status_code=303)
 
