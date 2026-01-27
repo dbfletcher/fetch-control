@@ -3,6 +3,7 @@
 <head>
     <title>Project Fetch</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { --sidebar-bg: #2c3e50; --primary: #3498db; --accent: #27ae60; --danger: #e74c3c; --sidebar-width: 280px; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; background: #f0f2f5; height: 100vh; overflow: hidden; }
@@ -163,7 +164,14 @@
                         <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'">{{ bin.name }}</h3>
                         {% if bin.location_name %}<span style="font-size:0.75em; background:#f0f0f0; padding:3px 10px; border-radius:4px;">📍 {{ bin.location_name }}</span>{% endif %}
                     </div>
-                    
+
+                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                        <button onclick="generateQR('{{ bin.id }}', '{{ bin.name }}')" 
+                                style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 5px 10px; border-radius: 4px; font-size: 0.75em; cursor: pointer; color: #495057;">
+                            📷 Print QR Code
+                        </button>
+                        <div id="qr-{{ bin.id }}" style="display:none;"></div>
+                    </div>
                     <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
                         <form action="/edit-bin/{{ bin.id }}" method="post">
                             <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px;">
@@ -266,6 +274,36 @@
                     card.style.display = "none";
                 }
             }
+        }
+        function generateQR(binId, binName) {
+            const qrContainer = document.getElementById(`qr-${binId}`);
+            qrContainer.innerHTML = ""; // Clear previous
+            
+            // Link to the specific mobile-friendly view
+            const binUrl = `${window.location.origin}/bins/view/${binId}`;
+            
+            new QRCode(qrContainer, {
+                text: binUrl,
+                width: 128,
+                height: 128
+            });
+
+            // Delay for rendering before opening print window
+            setTimeout(() => {
+                const imgData = qrContainer.querySelector('img').src;
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <body style="text-align:center; font-family:sans-serif; padding:40px;">
+                            <h1 style="margin-bottom:0;">${binName}</h1>
+                            <p style="margin-top:0; color:#666;">Project Fetch Inventory</p>
+                            <img src="${imgData}" style="width:250px; border: 10px solid white;">
+                            <p style="font-size:0.8em; color:#888;">Scan to view bin contents</p>
+                            <script>window.onload = function() { window.print(); setTimeout(window.close, 500); }<\/script>
+                        </body>
+                    </html>
+                `);
+            }, 500);
         }
     </script>
 </body>

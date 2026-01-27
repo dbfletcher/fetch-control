@@ -94,6 +94,28 @@ async def welcome(request: Request, email: str = Depends(get_current_user_email)
         "message": "Select a household from the sidebar to view your inventory."
     })
 
+@app.get("/bins/view/{bin_id}", response_class=HTMLResponse)
+async def view_bin_qr(request: Request, bin_id: int):
+    """Publicly accessible read-only view for QR scans."""
+    # Fetch the bin name and area
+    bin_data = await database.fetch_one("""
+        SELECT b.*, l.name as location_name 
+        FROM bin b LEFT JOIN locations l ON b.location_id = l.id 
+        WHERE b.id = :bid
+    """, {"bid": bin_id})
+    
+    if not bin_data:
+        raise HTTPException(status_code=404, detail="Bin not found")
+    
+    # Fetch parts inside this bin
+    items = await database.fetch_all("SELECT * FROM items WHERE bin_id = :bid", {"bid": bin_id})
+    
+    return templates.TemplateResponse("bin_view.html", {
+        "request": request,
+        "bin": bin_data,
+        "items": items
+    })
+
 @app.get("/bins/{household_id}", response_class=HTMLResponse)
 async def get_bins(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
