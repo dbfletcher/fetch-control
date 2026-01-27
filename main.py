@@ -223,7 +223,7 @@ async def add_item(
     if image and image.filename:
         filename = f"item_{uuid.uuid4()}.jpg"
         content = await image.read()
-        process_and_save_image(content, os.path.join(HIGHRES_DIR, filename))
+        process_and_save_image(content, filename)
     
     query = """
         INSERT INTO items (bin_id, name, quantity, price, description, item_url, high_res_image) 
@@ -250,7 +250,7 @@ async def edit_item(
     if image and image.filename:
         filename = f"item_{uuid.uuid4()}.jpg"
         content = await image.read()
-        process_and_save_image(content, os.path.join(HIGHRES_DIR, filename))
+        process_and_save_image(content, filename)
 
     query = """
         UPDATE items SET name = :n, quantity = :q, price = :p, description = :d, item_url = :u, high_res_image = :img 
