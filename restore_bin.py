@@ -1,5 +1,7 @@
 import json
 import mysql.connector
+import os
+import sys
 
 DB_CONFIG = {
     "host": "192.168.50.60",
@@ -8,7 +10,16 @@ DB_CONFIG = {
     "database": "fetch_db"
 }
 
-def restore_bin(file_path):
+def restore_bin(input_path):
+    # --- Smart Path Detection ---
+    file_path = input_path
+    if input_path.isdigit():
+        file_path = f"bin_backups/bin_{input_path}_snapshot.json"
+    
+    if not os.path.exists(file_path):
+        print(f"Error: Could not find backup file at {file_path}")
+        return
+
     with open(file_path, "r") as f:
         data = json.load(f)
 
@@ -35,8 +46,7 @@ def restore_bin(file_path):
     conn.close()
 
 if __name__ == "__main__":
-    import sys
     if len(sys.argv) < 2:
-        print("Usage: python3 restore_bin.py [file_path]")
+        print("Usage: uv run restore_bin.py [file_path or bin_id]")
     else:
         restore_bin(sys.argv[1])

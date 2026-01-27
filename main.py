@@ -229,16 +229,43 @@ async def delete_location_photo(bin_id: int, email: str = Depends(get_current_us
 
 @app.post("/delete-bin/{bin_id}")
 async def delete_bin(bin_id: int):
-    """Deletes a bin and cascades to items."""
-    # First, delete all items belonging to this bin to maintain integrity
-    await database.execute("DELETE FROM items WHERE bin_id = :bid", {"bid": bin_id})
+    """Moves items to an 'Unassigned' bin before deleting the bin record."""
+    # 1. Get current bin details to find the household
+    bin_data = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
+    if not bin_data:
+        raise HTTPException(status_code=404, detail="Bin not found")
     
-    # Then delete the bin itself
+    hh_id = bin_data['household_id']
+
+    # 2. Ensure an 'Unassigned' bin exists for this household
+    unassigned_bin = await database.fetch_one(
+        "SELECT id FROM bin WHERE name = 'Unassigned' AND household_id = :hid", 
+        {"hid": hh_id}
+    )
+    
+    if not unassigned_bin:
+        # Create it if it's missing
+        unassigned_id = await database.execute(
+            "INSERT INTO bin (name, household_id) VALUES ('Unassigned', :hid)",
+            {"hid": hh_id}
+        )
+    else:
+        unassigned_id = unassigned_bin['id']
+
+    # 3. Prevent deleting the Unassigned bin itself
+    if bin_id == unassigned_id:
+        return RedirectResponse(url=f"/bins/{hh_id}?error=Cannot delete the Unassigned bin", status_code=303)
+
+    # 4. Move all items to the Unassigned bin
+    await database.execute(
+        "UPDATE items SET bin_id = :uid WHERE bin_id = :bid",
+        {"uid": unassigned_id, "bid": bin_id}
+    )
+    
+    # 5. Finally, delete the now-empty bin
     await database.execute("DELETE FROM bin WHERE id = :bid", {"bid": bin_id})
     
-    # Redirect back to the dashboard (using a default household ID or referrer)
-    return RedirectResponse(url="/", status_code=303)
-
+    return RedirectResponse(url=f"/bins/{hh_id}", status_code=303)
 # --- Item (Part) Management ---
 
 @app.post("/add-item/{bin_id}")
