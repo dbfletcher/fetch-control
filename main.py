@@ -301,10 +301,11 @@ async def edit_item(
     price: float = Form(...),
     description: str = Form(None),
     item_url: str = Form(None),
-    new_bin_id: int = Form(...),  # Added this field
+    new_bin_id: int = Form(...),
+    household_id: int = Form(...),  # Capture the household ID
     image: UploadFile = File(None)
 ):
-    # Update the item record, including the bin_id
+    # Update the item record
     query = """
         UPDATE items 
         SET name = :name, quantity = :quantity, price = :price, 
@@ -316,9 +317,10 @@ async def edit_item(
         "desc": description, "url": item_url, "bid": new_bin_id, "iid": item_id
     })
 
-    # (Keep your existing image processing logic here)
+    # ... (Keep your image processing logic here) ...
     
-    return RedirectResponse(url="/", status_code=303)
+    # Redirect back to the specific household view
+    return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
 
 @app.post("/delete-item-photo/{item_id}")
 async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):

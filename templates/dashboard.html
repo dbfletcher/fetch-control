@@ -226,6 +226,7 @@
                         </div>
                         <div id="ep-{{ item.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd; clear:both;">
                             <form action="/edit-item/{{ item.id }}" method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="household_id" value="{{ current_household_id }}">
                                 <input type="text" name="name" value="{{ item.name }}" required style="width:100%; margin-bottom:10px; padding:8px;">
                                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                                     <input type="number" name="quantity" value="{{ item.quantity }}" style="width:30%; padding:8px;">
