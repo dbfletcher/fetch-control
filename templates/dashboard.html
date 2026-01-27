@@ -122,12 +122,13 @@
         {% endif %}
         
         <div class="top-bar">
-            <button onclick="toggleSidebar()" ...>☰</button>
-            <input type="text" id="globalSearch" placeholder="Search parts or bins..." 
+        {% if current_household_id %}
+        <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
+            <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." 
                    onkeyup="filterInventory()" 
-                   style="flex-grow: 1; max-width: 400px; padding: 10px; border-radius: 20px; border: 1px solid #ddd; margin: 0 15px;">
-            <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
+                   style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); outline: none;">
         </div>
+        {% endif %}
 
         <div class="bin-grid">
             {% for bin in bins if not bin.parent_bin_id %}
