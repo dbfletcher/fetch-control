@@ -39,6 +39,19 @@
         - { src: 'uv.lock', dest: '/root/fetch-app/uv.lock' }
       notify: Restart Fetch
 
+    - name: Deploy Maintenance Utilities
+      ansible.builtin.copy:
+        src: find_orphans.py
+        dest: /root/fetch-app/find_orphans.py
+        mode: '0755'
+
+    - name: Ensure MySQL Connector is in uv environment
+      ansible.builtin.command:
+        cmd: "{{ uv_path.stdout }} add mysql-connector-python"
+        chdir: /root/fetch-app
+      register: uv_add_result
+      changed_when: "'Added' in uv_add_result.stdout"
+
     - name: Sync uv environment (uv sync)
       ansible.builtin.command:
         cmd: "{{ uv_path.stdout }} sync"

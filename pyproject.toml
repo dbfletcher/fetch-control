@@ -9,6 +9,7 @@ dependencies = [
     "databases>=0.9.0",
     "fastapi>=0.128.0",
     "jinja2>=3.1.6",
+    "mysql-connector-python>=9.6.0",
     "pillow>=12.1.0",
     "python-multipart>=0.0.22",
     "uvicorn>=0.40.0",
