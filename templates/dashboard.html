@@ -122,19 +122,12 @@
         {% endif %}
         
         <div class="top-bar">
-            <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
-            <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
-            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-size:0.9em; font-weight:bold;">
-                Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
-            </div>
-        </div>
-
-        <div class="top-bar">
             <button onclick="toggleSidebar()" ...>☰</button>
             <input type="text" id="globalSearch" placeholder="Search parts or bins..." 
                    onkeyup="filterInventory()" 
                    style="flex-grow: 1; max-width: 400px; padding: 10px; border-radius: 20px; border: 1px solid #ddd; margin: 0 15px;">
             <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
+        </div>
 
         <div class="bin-grid">
             {% for bin in bins if not bin.parent_bin_id %}
