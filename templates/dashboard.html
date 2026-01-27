@@ -290,7 +290,7 @@
         </div>
         <div style="display:flex; gap:20px;">
             <button onclick="cancelCrop()" style="padding:15px 30px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold;">Cancel</button>
-            <button onclick="executeCrop()" style="padding:15px 30px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold;">Save & Upload</button>
+            <button onclick="executeCrop(event)" style="padding:15px 30px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold;">Save & Upload</button>
         </div>
     </div>
 
@@ -352,14 +352,18 @@
             reader.readAsDataURL(file);
         }
 
-        function executeCrop() {
-            // Disable the button to prevent double-taps
-            const saveBtn = event.target;
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Uploading...";
+        function executeCrop(e) {
+            // Use the passed event or the global window.event
+            const eventObj = e || window.event;
+            const saveBtn = eventObj ? eventObj.target : null;
+            
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerText = "Uploading...";
+            }
 
             const canvas = cropper.getCroppedCanvas({ 
-                width: 1000,  // Slightly smaller, faster to process
+                width: 1000, 
                 height: 1000, 
                 imageSmoothingQuality: 'medium' 
             });
@@ -367,22 +371,42 @@
             canvas.toBlob((blob) => {
                 const formData = new FormData(currentForm);
                 
+                // Determine the correct field name for the backend
                 if (currentForm.action.includes('add-item') || currentForm.action.includes('edit-item')) {
+                    // Check for Part Name if adding a new item
+                    if (currentForm.action.includes('add-item') && !formData.get('name')) {
+                        alert("Please enter a Part Name before snapping the photo!");
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerText = "Save & Upload";
+                        }
+                        return;
+                    }
                     formData.set('image', blob, 'cropped_image.jpg');
                 } else {
                     formData.set('file', blob, 'cropped_image.jpg');
                 }
 
                 fetch(currentForm.action, { method: 'POST', body: formData })
-                .then(() => { 
-                    window.location.reload(); 
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert("Server error. Check if the Part Name is filled out.");
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerText = "Save & Upload";
+                        }
+                    }
                 })
                 .catch(err => {
-                    alert("Upload failed. Check Nginx logs.");
-                    saveBtn.disabled = false;
-                    saveBtn.innerText = "Save & Upload";
+                    alert("Upload failed. Check your network connection.");
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerText = "Save & Upload";
+                    }
                 });
-            }, 'image/jpeg', 0.7); // 0.7 quality provides a massive speed boost
+            }, 'image/jpeg', 0.7);
         }
 
         function cancelCrop() {
