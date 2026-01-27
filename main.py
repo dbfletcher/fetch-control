@@ -302,26 +302,39 @@ async def edit_item(
     description: str = Form(None),
     item_url: str = Form(None),
     new_bin_id: int = Form(...),
-    household_id: int = Form(...),  # Capture the household ID
-    image: UploadFile = File(None)
+    household_id: int = Form(...),
+    image: UploadFile = File(None),
+    email: str = Depends(get_current_user_email) # Added for consistency
 ):
-    # Update the item record
-    query = """
+    # 1. Handle New Image Upload
+    filename = None
+    if image and image.filename:
+        # Generate unique filename and process the image
+        filename = f"item_{uuid.uuid4()}.jpg"
+        content = await image.read()
+        process_and_save_image(content, filename)
+
+    # 2. Update Database
+    # We use a dynamic query to only update the image column if a new one was uploaded
+    update_sql = """
         UPDATE items 
         SET name = :name, quantity = :quantity, price = :price, 
-            description = :desc, item_url = :url, bin_id = :bid 
+            description = :desc, item_url = :url, bin_id = :bid
+            {img_col}
         WHERE id = :iid
     """
-    await database.execute(query, {
+    img_col = ", high_res_image = :img" if filename else ""
+    query = update_sql.format(img_col=img_col)
+    
+    values = {
         "name": name, "quantity": quantity, "price": price,
         "desc": description, "url": item_url, "bid": new_bin_id, "iid": item_id
-    })
-
-    # ... (Keep your image processing logic here) ...
+    }
+    if filename: values["img"] = filename
     
-    # Redirect back to the specific household view
+    await database.execute(query, values)
+    
     return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
-
 @app.post("/delete-item-photo/{item_id}")
 async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):
     """Removes part photo from disk and database."""
