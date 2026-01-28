@@ -46,6 +46,20 @@ async def shutdown():
     await database.disconnect()
 
 # --- Helpers ---
+async def log_activity(email: str, household_id: int, action: str, description: str):
+    # Retrieve the user_id for the logged-in email
+    user = await database.fetch_one("SELECT id FROM users WHERE email = :email", {"email": email})
+    if user:
+        query = """
+            INSERT INTO activity_log (user_id, household_id, action_type, description)
+            VALUES (:uid, :hid, :action, :desc)
+        """
+        await database.execute(query, {
+            "uid": user['id'], 
+            "hid": household_id, 
+            "action": action, 
+            "desc": description
+        })
 
 async def get_user_households(email: str):
     """Retrieves authorized households for the current user."""
@@ -411,8 +425,8 @@ async def delete_bin(bin_id: int):
 
 @app.post("/add-item/{bin_id}")
 async def add_item(
-    bin_id: int, 
-    name: str = Form(...), 
+    bin_id: int,
+    name: str = Form(...),
     quantity: int = Form(1),
     price: float = Form(0.00),
     description: str = Form(None),
@@ -420,18 +434,37 @@ async def add_item(
     image: UploadFile = File(None),
     email: str = Depends(get_current_user_email)
 ):
-    check = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
+    # 1. Get the household context before doing anything
+    check = await database.fetch_one(
+        "SELECT household_id, name as bin_name FROM bin WHERE id = :bid", 
+        {"bid": bin_id}
+    )
+    
     filename = None
     if image and image.filename:
         filename = f"item_{uuid.uuid4()}.jpg"
         content = await image.read()
         process_and_save_image(content, filename)
-    
+
+    # 2. Insert the item into the database
     query = """
-        INSERT INTO items (bin_id, name, quantity, price, description, item_url, high_res_image) 
+        INSERT INTO items (bin_id, name, quantity, price, description, item_url, high_res_image)
         VALUES (:bid, :n, :q, :p, :d, :u, :img)
     """
-    await database.execute(query, {"bid": bin_id, "n": name, "q": quantity, "p": price, "d": description, "u": item_url, "img": filename})
+    await database.execute(query, {
+        "bid": bin_id, "n": name, "q": quantity, 
+        "p": price, "d": description, "u": item_url, "img": filename
+    })
+
+    # 3. Log the activity for your Indiana workshop audit trail
+    # This uses the helper we discussed to link your email to the household action
+    await log_activity(
+        email, 
+        check['household_id'], 
+        "ADD", 
+        f"Added {quantity}x '{name}' to bin '{check['bin_name']}'"
+    )
+
     return RedirectResponse(url=f"/bins/{check['household_id']}", status_code=303)
 
 @app.post("/edit-item/{item_id}")
@@ -476,6 +509,7 @@ async def edit_item(
     await database.execute(query, values)
     
     return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
+
 @app.post("/delete-item-photo/{item_id}")
 async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):
     """Removes part photo from disk and database."""
@@ -496,3 +530,33 @@ async def delete_item(item_id: int, email: str = Depends(get_current_user_email)
             if os.path.exists(path): os.remove(path)
     await database.execute("DELETE FROM items WHERE id = :iid", {"iid": item_id})
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
+
+@app.post("/move-item/{item_id}")
+async def move_item(
+    item_id: int, 
+    new_bin_id: int = Form(...), 
+    email: str = Depends(get_current_user_email)
+):
+    # 1. Get current item and target bin details for the log
+    item = await database.fetch_one("SELECT name, bin_id FROM items WHERE id = :iid", {"iid": item_id})
+    new_bin = await database.fetch_one("SELECT household_id, name FROM bin WHERE id = :bid", {"bid": new_bin_id})
+    
+    if not item or not new_bin:
+        raise HTTPException(status_code=404, detail="Item or Bin not found")
+
+    # 2. Perform the move in the database
+    await database.execute(
+        "UPDATE items SET bin_id = :bid WHERE id = :iid", 
+        {"bid": new_bin_id, "iid": item_id}
+    )
+    
+    # 3. Log the activity for your workshop audit trail
+    await log_activity(
+        email, 
+        new_bin['household_id'], 
+        "MOVE", 
+        f"Moved '{item['name']}' to bin '{new_bin['name']}'"
+    )
+    
+    # Redirect back to the household view
+    return RedirectResponse(url=f"/bins/{new_bin['household_id']}", status_code=303)

@@ -97,5 +97,19 @@
             </div>
         </div>
     </div>
+    <div class="admin-box">
+        <h3>🛠️ Recent Activity Feed</h3>
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
+            {% for log in activity %}
+            <div style="padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.9em;">
+                <span style="color: #666;">[{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}]</span> 
+                <strong>{{ log.email }}</strong> 
+                <span class="tag" style="background: #e8f4fd; color: #3498db;">{{ log.action_type }}</span>
+                {{ log.description }} 
+                <em style="color: #888;">({{ log.household_name }})</em>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 </body>
 </html>
