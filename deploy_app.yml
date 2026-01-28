@@ -40,6 +40,7 @@
         - { src: 'templates/bin_view.html', dest: '/root/fetch-app/templates/bin_view.html' }
         - { src: 'templates/print_labels.html', dest: '/root/fetch-app/templates/print_labels.html' }
         - { src: 'templates/global_search.html', dest: '/root/fetch-app/templates/global_search.html' }
+        - { src: 'templates/admin.html', dest: '/root/fetch-app/templates/admin.html' }
         - { src: 'find_orphans.py', dest: '/root/fetch-app/find_orphans.py' }
       notify: Restart Fetch
 
