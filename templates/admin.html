@@ -1,0 +1,9 @@
+<form action="/admin/link-user" method="post">
+    <select name="user_id">
+        {% for user in users %}<option value="{{ user.id }}">{{ user.email }}</option>{% endfor %}
+    </select>
+    <select name="household_id">
+        {% for hh in households %}<option value="{{ hh.id }}">{{ hh.name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn-save" style="background: var(--accent);">Grant Access</button>
+</form>

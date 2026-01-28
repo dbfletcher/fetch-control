@@ -129,10 +129,15 @@
                 <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="display:block; text-align:center; text-decoration:none; background:var(--accent);">
                     🖨️ Batch Print Labels
                 </a>
-		<a href="/global-search?return_to={{ current_household_id }}" class="btn-save" 
-		   style="display:block; text-align:center; text-decoration:none; background:#9b59b6; margin-top:10px;">
-		    🔍 Global Inventory Search
-		</a>
+                <a href="/global-search?return_to={{ current_household_id }}" class="btn-save" 
+                    style="display:block; text-align:center; text-decoration:none; background:#9b59b6; margin-top:10px;">
+                        🔍 Global Inventory Search
+                </a>
+                {% if email == 'dbfletcher@gmail.com' %}
+                <a href="/admin" class="btn-save" style="background:#444; margin-top:10px; text-decoration:none; display:block; text-align:center;">
+                    ⚙️ Admin Control Panel
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>

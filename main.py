@@ -80,6 +80,31 @@ async def health_check():
     """Public endpoint for automated health monitoring."""
     return {"status": "ok"}
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request, email: str = Depends(get_current_user_email)):
+    # Restrict to your specific admin email
+    if email != "dbfletcher@gmail.com":
+        raise HTTPException(status_code=403, detail="Unauthorized access to Admin Panel")
+
+    # Fetch all data for the management view
+    all_users = await database.fetch_all("SELECT * FROM users")
+    all_households = await database.fetch_all("SELECT * FROM households")
+    
+    # Fetch existing memberships with names for clarity
+    memberships = await database.fetch_all("""
+        SELECT u.email, h.name as household_name, m.id as membership_id
+        FROM memberships m
+        JOIN users u ON m.user_id = u.id
+        JOIN households h ON m.household_id = h.id
+    """)
+
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "users": all_users,
+        "households": all_households,
+        "memberships": memberships
+    })
+
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
