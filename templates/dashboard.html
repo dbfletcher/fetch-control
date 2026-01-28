@@ -109,6 +109,10 @@
                     </select>
                     <button type="submit" class="btn-save">Create</button>
                 </form>
+                <p style="font-size: 0.7em; opacity: 0.5; margin-top:20px;">Tools</p>
+                <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="display:block; text-align:center; text-decoration:none; background:var(--accent);">
+                    🖨️ Batch Print Labels
+                </a>
             </div>
             {% endif %}
         </div>
@@ -165,19 +169,10 @@
                         </form>
                     {% endif %}
                 </div>
-
                 <div style="padding: 20px; border-top: 5px solid var(--primary);">
                     <div style="display:flex; justify-content:space-between;">
                         <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'">{{ bin.name }}</h3>
                         {% if bin.location_name %}<span style="font-size:0.75em; background:#f0f0f0; padding:3px 10px; border-radius:4px;">📍 {{ bin.location_name }}</span>{% endif %}
-                    </div>
-
-                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                        <button onclick="generateQR('{{ bin.id }}', '{{ bin.name }}')" 
-                                style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 5px 10px; border-radius: 4px; font-size: 0.75em; cursor: pointer; color: #495057;">
-                            📷 Print QR Code
-                        </button>
-                        <div id="qr-{{ bin.id }}" style="display:none;"></div>
                     </div>
                     <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
                         <form action="/edit-bin/{{ bin.id }}" method="post">

@@ -160,6 +160,24 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
         "error_location_id": request.query_params.get("location_id")
     })
 
+@app.get("/print-labels/{household_id}", response_class=HTMLResponse)
+async def print_labels_page(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
+    households = await get_user_households(email)
+    current_hh = next((h for h in households if h["id"] == household_id), None)
+    
+    if not current_hh:
+        raise HTTPException(status_code=403, detail="Access Denied")
+
+    # Fetch all bins to allow selection
+    bins = await database.fetch_all("SELECT * FROM bin WHERE household_id = :hid", {"hid": household_id})
+    
+    return templates.TemplateResponse("print_labels.html", {
+        "request": request,
+        "bins": bins,
+        "household_name": current_hh["name"],
+        "household_id": household_id
+    })
+
 # --- Physical Area (Location) Management ---
 
 @app.post("/add-location/{household_id}")
