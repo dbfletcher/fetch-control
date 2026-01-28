@@ -1,9 +1,48 @@
-<form action="/admin/link-user" method="post">
-    <select name="user_id">
-        {% for user in users %}<option value="{{ user.id }}">{{ user.email }}</option>{% endfor %}
-    </select>
-    <select name="household_id">
-        {% for hh in households %}<option value="{{ hh.id }}">{{ hh.name }}</option>{% endfor %}
-    </select>
-    <button type="submit" class="btn-save" style="background: var(--accent);">Grant Access</button>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Project Fetch</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #f4f7f6; }
+        .admin-box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        .btn-link { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="admin-box">
+        <a href="/" style="text-decoration:none; color:#3498db;">← Back to Dashboard</a>
+        <h2>⚙️ User Access Management</h2>
+        
+        <form action="/admin/link-user" method="post" style="display:flex; gap:10px; margin-top:20px;">
+            <select name="user_id" required style="padding:10px;">
+                <option value="">-- Select User --</option>
+                {% for u in users %}<option value="{{ u.id }}">{{ u.email }}</option>{% endfor %}
+            </select>
+            <select name="household_id" required style="padding:10px;">
+                <option value="">-- Select Household --</option>
+                {% for h in households %}<option value="{{ h.id }}">{{ h.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn-link">Grant Access</button>
+        </form>
+
+        <table>
+            <thead><tr><th>User</th><th>Household</th><th>Action</th></tr></thead>
+            <tbody>
+                {% for m in memberships %}
+                <tr>
+                    <td>{{ m.email }}</td>
+                    <td>{{ m.household_name }}</td>
+                    <td>
+                        <form action="/admin/revoke-access/{{ m.membership_id }}" method="post">
+                            <button type="submit" style="background:none; border:none; color:#e74c3c; cursor:pointer;">Revoke</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

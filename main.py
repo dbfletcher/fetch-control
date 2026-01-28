@@ -82,28 +82,33 @@ async def health_check():
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, email: str = Depends(get_current_user_email)):
-    # Restrict to your specific admin email
+    # 1. Security Check
     if email != "dbfletcher@gmail.com":
-        raise HTTPException(status_code=403, detail="Unauthorized access to Admin Panel")
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
-    # Fetch all data for the management view
-    all_users = await database.fetch_all("SELECT * FROM users")
-    all_households = await database.fetch_all("SELECT * FROM households")
-    
-    # Fetch existing memberships with names for clarity
-    memberships = await database.fetch_all("""
-        SELECT u.email, h.name as household_name, m.id as membership_id
-        FROM memberships m
-        JOIN users u ON m.user_id = u.id
-        JOIN households h ON m.household_id = h.id
-    """)
+    try:
+        # 2. Fetch data for the management forms
+        users = await database.fetch_all("SELECT id, email FROM users")
+        households = await database.fetch_all("SELECT id, name FROM households")
+        
+        # 3. Fetch current access map
+        memberships = await database.fetch_all("""
+            SELECT m.id as membership_id, u.email, h.name as household_name
+            FROM memberships m
+            JOIN users u ON m.user_id = u.id
+            JOIN households h ON m.household_id = h.id
+        """)
 
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "users": all_users,
-        "households": all_households,
-        "memberships": memberships
-    })
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "email": email,
+            "users": users,
+            "households": households,
+            "memberships": memberships
+        })
+    except Exception as e:
+        print(f"ADMIN ERROR: {e}") # This will show in your Proxmox logs
+        raise HTTPException(status_code=500, detail="Database error in Admin panel")
 
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
