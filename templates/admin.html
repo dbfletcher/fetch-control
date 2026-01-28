@@ -12,42 +12,6 @@
 </head>
 <body>
     <div class="admin-box">
-        <a href="{% if return_id %}/bins/{{ return_id }}{% else %}/{% endif %}" 
-           style="text-decoration:none; color:#3498db;">
-           ← Back to Dashboard
-        </a>
-        <h2>⚙️ User Access Management</h2>
-        
-        <form action="/admin/link-user?return_to={{ return_id or '' }}" method="post" style="display:flex; gap:10px; margin-top:20px;">
-            <select name="user_id" required style="padding:10px;">
-                <option value="">-- Select User --</option>
-                {% for u in users %}<option value="{{ u.id }}">{{ u.email }}</option>{% endfor %}
-            </select>
-            <select name="household_id" required style="padding:10px;">
-                <option value="">-- Select Household --</option>
-                {% for h in households %}<option value="{{ h.id }}">{{ h.name }}</option>{% endfor %}
-            </select>
-            <button type="submit" class="btn-link">Grant Access</button>
-        </form>
-
-        <table>
-            <thead><tr><th>User</th><th>Household</th><th>Action</th></tr></thead>
-            <tbody>
-                {% for m in memberships %}
-                <tr>
-                    <td>{{ m.email }}</td>
-                    <td>{{ m.household_name }}</td>
-                    <td>
-                        <form action="/admin/revoke-access/{{ m.membership_id }}" method="post">
-                            <button type="submit" style="background:none; border:none; color:#e74c3c; cursor:pointer;">Revoke</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="admin-box">
         <a href="{% if return_id %}/bins/{{ return_id }}{% else %}/{% endif %}" style="text-decoration:none; color:#3498db;">← Back to Dashboard</a>
         <h2>⚙️ User Access Management</h2>
         
