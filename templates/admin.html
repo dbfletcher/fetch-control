@@ -12,7 +12,10 @@
 </head>
 <body>
     <div class="admin-box">
-        <a href="/" style="text-decoration:none; color:#3498db;">← Back to Dashboard</a>
+        <a href="{% if return_id %}/bins/{{ return_id }}{% else %}/{% endif %}" 
+           style="text-decoration:none; color:#3498db;">
+           ← Back to Dashboard
+        </a>
         <h2>⚙️ User Access Management</h2>
         
         <form action="/admin/link-user?return_to={{ return_id or '' }}" method="post" style="display:flex; gap:10px; margin-top:20px;">
