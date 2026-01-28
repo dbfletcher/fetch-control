@@ -27,6 +27,12 @@
       changed_when: false
       failed_when: uv_path.rc != 0
 
+    - name: Run Goose Migrations
+      delegate_to: localhost  # Runs from your control container where goose is installed
+      ansible.builtin.shell:
+        cmd: goose -dir migrations mysql "root:password@tcp(192.168.50.60:3306)/fetch_db" up
+        chdir: ~/fetch-control  # Path to your migrations folder
+
     - name: Sync FastAPI Application Files
       ansible.builtin.copy:
         src: "{{ item.src }}"
