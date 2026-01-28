@@ -231,6 +231,25 @@
                                     <a href="/highres/{{ item.high_res_image }}" target="_blank">
                                         <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" title="High-res">
                                     </a>
+                                    <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Delete part photo?')">
+                                        <button type="submit" class="btn-delete-photo">×</button>
+                                    </form>
+                                {% else %}
+                                    <form action="/upload-item-photo/{{ item.id }}" method="post" enctype="multipart/form-data" style="width:100%; height:100%;">
+                                        <input type="file" name="image" accept="image/*" capture="environment" 
+                                               onchange="handleFileSelect(this, this.form)" id="item-up-{{ item.id }}" style="display:none;">
+                                        <label for="item-up-{{ item.up_id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:50px; height:50px; background:#eee; border-radius:4px; color:var(--primary); font-size:20px; font-weight:bold; border:1px dashed #ccc;">
+                                            +
+                                        </label>
+                                    </form>
+                                {% endif %}
+                            </div>
+
+                            <div class="item-thumb-container">
+                                {% if item.high_res_image %}
+                                    <a href="/highres/{{ item.high_res_image }}" target="_blank">
+                                        <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" title="High-res">
+                                    </a>
                                     <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Are you sure you want to delete this part photo?')">
                                         <button type="submit" class="btn-delete-photo">×</button>
                                     </form>
