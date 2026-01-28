@@ -349,17 +349,43 @@ async def add_bin(household_id: int, name: str = Form(...), location_id: str = F
     return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
 
 @app.post("/edit-bin/{bin_id}")
-async def edit_bin(bin_id: int, name: str = Form(...), location_id: str = Form(None), parent_bin_id: str = Form(None), email: str = Depends(get_current_user_email)):
-    """Updates bin metadata and hierarchy."""
-    check = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
-    if not check: raise HTTPException(status_code=403)
+async def edit_bin(
+    bin_id: int, 
+    name: str = Form(...), 
+    location_id: str = Form(None), 
+    parent_bin_id: str = Form(None), 
+    email: str = Depends(get_current_user_email)
+):
+    """Updates bin metadata and hierarchy with activity logging."""
+    # 1. Fetch current state for comparison and context
+    old_bin = await database.fetch_one(
+        "SELECT name, location_id, household_id FROM bin WHERE id = :bid", 
+        {"bid": bin_id}
+    )
+    if not old_bin: 
+        raise HTTPException(status_code=404, detail="Bin not found")
 
     lid = int(location_id) if location_id and location_id != "None" else None
     pid = int(parent_bin_id) if parent_bin_id and parent_bin_id != "None" else None
-    
+
+    # 2. Update the bin
     query = "UPDATE bin SET name = :n, location_id = :l, parent_bin_id = :p WHERE id = :bid"
     await database.execute(query, {"n": name, "l": lid, "p": pid, "bid": bin_id})
-    return RedirectResponse(url=f"/bins/{check['household_id']}", status_code=303)
+
+    # 3. Log the activity
+    if old_bin['name'] != name:
+        action_desc = f"Renamed bin '{old_bin['name']}' to '{name}'"
+    elif old_bin['location_id'] != lid:
+        # Fetch location name for a better log entry
+        loc = await database.fetch_one("SELECT name FROM locations WHERE id = :lid", {"lid": lid})
+        loc_name = loc['name'] if loc else "Unknown"
+        action_desc = f"Moved bin '{name}' to location '{loc_name}'"
+    else:
+        action_desc = f"Updated metadata for bin '{name}'"
+
+    await log_activity(email, old_bin['household_id'], "UPDATE", action_desc)
+
+    return RedirectResponse(url=f"/bins/{old_bin['household_id']}", status_code=303)
 
 @app.post("/upload-location/{bin_id}")
 async def upload_location_photo(bin_id: int, file: UploadFile = File(...), email: str = Depends(get_current_user_email)):
@@ -471,44 +497,61 @@ async def add_item(
 async def edit_item(
     item_id: int,
     name: str = Form(...),
+    bin_id: int = Form(...),
     quantity: int = Form(...),
-    price: float = Form(...),
+    price: float = Form(0.00),
     description: str = Form(None),
     item_url: str = Form(None),
-    new_bin_id: int = Form(...),
-    household_id: int = Form(...),
     image: UploadFile = File(None),
-    email: str = Depends(get_current_user_email) # Added for consistency
+    email: str = Depends(get_current_user_email)
 ):
-    # 1. Handle New Image Upload
+    # 1. Fetch current state to see if the bin changed
+    old_item = await database.fetch_one(
+        "SELECT bin_id, name, quantity FROM items WHERE id = :iid", 
+        {"iid": item_id}
+    )
+    if not old_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
     filename = None
     if image and image.filename:
-        # Generate unique filename and process the image
         filename = f"item_{uuid.uuid4()}.jpg"
         content = await image.read()
         process_and_save_image(content, filename)
 
-    # 2. Update Database
-    # We use a dynamic query to only update the image column if a new one was uploaded
-    update_sql = """
+    # 2. Update the item
+    # Note: We only update the image if a new one was actually uploaded
+    update_query = """
         UPDATE items 
-        SET name = :name, quantity = :quantity, price = :price, 
-            description = :desc, item_url = :url, bin_id = :bid
-            {img_col}
+        SET name = :n, bin_id = :bid, quantity = :q, price = :p, 
+            description = :d, item_url = :u
+            {img_clause}
         WHERE id = :iid
     """
-    img_col = ", high_res_image = :img" if filename else ""
-    query = update_sql.format(img_col=img_col)
+    img_clause = ", high_res_image = :img" if filename else ""
+    query = update_query.format(img_clause=img_clause)
     
-    values = {
-        "name": name, "quantity": quantity, "price": price,
-        "desc": description, "url": item_url, "bid": new_bin_id, "iid": item_id
-    }
-    if filename: values["img"] = filename
+    params = {"n": name, "bid": bin_id, "q": quantity, "p": price, "d": description, "u": item_url, "iid": item_id}
+    if filename: params["img"] = filename
+
+    await database.execute(query, params)
+
+    # 3. Determine the log description
+    current_bin = await database.fetch_one("SELECT name, household_id FROM bin WHERE id = :bid", {"bid": bin_id})
     
-    await database.execute(query, values)
-    
-    return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
+    if old_item['bin_id'] != int(bin_id):
+        action_desc = f"Moved '{name}' from a different bin to '{current_bin['name']}'"
+        action_type = "MOVE"
+    elif old_item['quantity'] != int(quantity):
+        action_desc = f"Updated quantity of '{name}' to {quantity} in bin '{current_bin['name']}'"
+        action_type = "UPDATE"
+    else:
+        action_desc = f"Updated details for '{name}'"
+        action_type = "UPDATE"
+
+    await log_activity(email, current_bin['household_id'], action_type, action_desc)
+
+    return RedirectResponse(url=f"/bins/{current_bin['household_id']}", status_code=303)
 
 @app.post("/delete-item-photo/{item_id}")
 async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):
