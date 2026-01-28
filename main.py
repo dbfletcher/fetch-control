@@ -81,17 +81,19 @@ async def health_check():
     return {"status": "ok"}
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(request: Request, email: str = Depends(get_current_user_email)):
-    # 1. Security Check
+async def admin_dashboard(
+    request: Request, 
+    return_to: int = None, # Capture the previous household ID
+    email: str = Depends(get_current_user_email)
+):
     if email != "dbfletcher@gmail.com":
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     try:
-        # 2. Fetch data for the management forms
         users = await database.fetch_all("SELECT id, email FROM users")
         households = await database.fetch_all("SELECT id, name FROM households")
         
-        # 3. Fetch current access map
+        # Use the new 'id' column we just added via Goose
         memberships = await database.fetch_all("""
             SELECT m.id as membership_id, u.email, h.name as household_name
             FROM memberships m
@@ -104,10 +106,11 @@ async def admin_dashboard(request: Request, email: str = Depends(get_current_use
             "email": email,
             "users": users,
             "households": households,
-            "memberships": memberships
+            "memberships": memberships,
+            "return_id": return_to # Pass it to the template
         })
     except Exception as e:
-        print(f"ADMIN ERROR: {e}") # This will show in your Proxmox logs
+        print(f"ADMIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Database error in Admin panel")
 
 @app.get("/", response_class=HTMLResponse)

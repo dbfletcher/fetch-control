@@ -134,7 +134,8 @@
                         🔍 Global Inventory Search
                 </a>
                 {% if email == 'dbfletcher@gmail.com' %}
-                <a href="/admin" class="btn-save" style="background:#444; margin-top:10px; text-decoration:none; display:block; text-align:center;">
+                <a href="/admin?return_to={{ current_household_id }}" class="btn-save" 
+                   style="background:#444; margin-top:10px; text-decoration:none; display:block; text-align:center;">
                     ⚙️ Admin Control Panel
                 </a>
                 {% endif %}
