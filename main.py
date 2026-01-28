@@ -235,11 +235,10 @@ async def delete_location(location_id: int, force: bool = Form(False), email: st
 @app.post("/upload-item-photo/{item_id}")
 async def upload_item_quick_photo(
     item_id: int, 
-    image: UploadFile = File(...), 
+    image: UploadFile = File(...), # Ensure this matches name="image" in HTML
     email: str = Depends(get_current_user_email)
 ):
-    """Directly saves a part photo without entering the full Edit routine."""
-    # 1. Verify item and get household ID for redirect
+    # Get household ID for the redirect
     res = await database.fetch_one(
         "SELECT b.household_id FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", 
         {"iid": item_id}
@@ -247,12 +246,10 @@ async def upload_item_quick_photo(
     if not res:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # 2. Process and Save
     filename = f"item_{uuid.uuid4()}.jpg"
     content = await image.read()
     process_and_save_image(content, filename)
 
-    # 3. Update Database
     await database.execute(
         "UPDATE items SET high_res_image = :img WHERE id = :iid", 
         {"img": filename, "iid": item_id}

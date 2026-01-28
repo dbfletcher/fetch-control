@@ -238,7 +238,7 @@
                                     <form action="/upload-item-photo/{{ item.id }}" method="post" enctype="multipart/form-data" style="width:100%; height:100%;">
                                         <input type="file" name="image" accept="image/*" capture="environment" 
                                                onchange="handleFileSelect(this, this.form)" id="item-up-{{ item.id }}" style="display:none;">
-                                        <label for="item-up-{{ item.up_id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:50px; height:50px; background:#eee; border-radius:4px; color:var(--primary); font-size:20px; font-weight:bold; border:1px dashed #ccc;">
+                                        <label for="item-up-{{ item.id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:50px; height:50px; background:#eee; border-radius:4px; color:var(--primary); font-size:20px; font-weight:bold; border:1px dashed #ccc;">
                                             +
                                         </label>
                                     </form>
