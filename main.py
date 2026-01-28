@@ -161,14 +161,18 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     })
 
 @app.get("/global-search", response_class=HTMLResponse)
-async def global_search(request: Request, q: str = None, email: str = Depends(get_current_user_email)):
+async def global_search(
+    request: Request, 
+    q: str = None, 
+    return_to: int = None, # Capture the previous household ID
+    email: str = Depends(get_current_user_email)
+):
     households = await get_user_households(email)
     results = []
     
     if q:
-        # Search item names, descriptions, and bin names across all authorized households
         query = """
-            SELECT i.*, b.name as bin_name, h.name as household_name
+            SELECT i.*, b.name as bin_name, h.name as household_name, h.id as household_id
             FROM items i
             JOIN bin b ON i.bin_id = b.id
             JOIN households h ON b.household_id = h.id
@@ -183,6 +187,7 @@ async def global_search(request: Request, q: str = None, email: str = Depends(ge
         "request": request,
         "results": results,
         "query": q,
+        "return_id": return_to, # Pass it to the template
         "available_households": households
     })
 
