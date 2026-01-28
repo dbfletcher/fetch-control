@@ -406,7 +406,6 @@
         }
 
         function executeCrop(e) {
-            // Use the passed event or the global window.event
             const eventObj = e || window.event;
             const saveBtn = eventObj ? eventObj.target : null;
             
@@ -424,20 +423,12 @@
             canvas.toBlob((blob) => {
                 const formData = new FormData(currentForm);
                 
-                // Determine the correct field name for the backend
-                if (currentForm.action.includes('add-item') || currentForm.action.includes('edit-item')) {
-                    // Check for Part Name if adding a new item
-                    if (currentForm.action.includes('add-item') && !formData.get('name')) {
-                        alert("Please enter a Part Name before snapping the photo!");
-                        if (saveBtn) {
-                            saveBtn.disabled = false;
-                            saveBtn.innerText = "Save & Upload";
-                        }
-                        return;
-                    }
-                    formData.set('image', blob, 'cropped_image.jpg');
+                // Check if we are using the 'Quick Upload' (+) or the standard 'Edit' forms
+                // The backend expects 'image' for items and 'file' for bins
+                if (currentForm.action.includes('item-photo') || currentForm.action.includes('add-item') || currentForm.action.includes('edit-item')) {
+                    formData.set('image', blob, 'cropped_item.jpg'); 
                 } else {
-                    formData.set('file', blob, 'cropped_image.jpg');
+                    formData.set('file', blob, 'cropped_bin.jpg');
                 }
 
                 fetch(currentForm.action, { method: 'POST', body: formData })
@@ -445,21 +436,15 @@
                     if (response.ok) {
                         window.location.reload();
                     } else {
-                        alert("Server error. Check if the Part Name is filled out.");
-                        if (saveBtn) {
-                            saveBtn.disabled = false;
-                            saveBtn.innerText = "Save & Upload";
-                        }
+                        alert("Upload failed. Ensure all required fields are filled.");
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "Save & Upload"; }
                     }
                 })
                 .catch(err => {
-                    alert("Upload failed. Check your network connection.");
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.innerText = "Save & Upload";
-                    }
+                    alert("Network error. Check your connection to the lab.");
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "Save & Upload"; }
                 });
-            }, 'image/jpeg', 0.7);
+            }, 'image/jpeg', 0.8);
         }
 
         function cancelCrop() {
