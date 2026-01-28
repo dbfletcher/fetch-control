@@ -38,6 +38,7 @@
         - { src: 'pyproject.toml', dest: '/root/fetch-app/pyproject.toml' }
         - { src: 'uv.lock', dest: '/root/fetch-app/uv.lock' }
         - { src: 'templates/bin_view.html', dest: '/root/fetch-app/templates/bin_view.html' }
+        - { src: 'templates/print_labels.html', dest: '/root/fetch-app/templates/print_labels.html' }
         - { src: 'find_orphans.py', dest: '/root/fetch-app/find_orphans.py' }
       notify: Restart Fetch
 
