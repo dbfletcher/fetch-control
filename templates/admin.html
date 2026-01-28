@@ -62,15 +62,29 @@
         </div>
     </div>
     <div class="admin-box">
-        <h3>🛠️ Recent Activity Feed</h3>
-        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0;">🛠️ Recent Activity Feed</h3>
+            <form action="/admin/clear-logs" method="post" onsubmit="return confirm('Wipe all activity history? This cannot be undone.')">
+                <button type="submit" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:0.8em; cursor:pointer; font-weight:bold;">
+                    🗑️ Clear All History
+                </button>
+            </form>
+        </div>
+
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px; background: white;">
             {% for log in activity %}
             <div style="padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.9em;">
-                <span style="color: #666;">[{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}]</span> 
-                <strong>{{ log.email }}</strong> 
-                <span class="tag" style="background: #e8f4fd; color: #3498db;">{{ log.action_type }}</span>
-                {{ log.description }} 
+                <span style="color: #666;">[{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}]</span>
+                <strong>{{ log.email }}</strong>
+                <span class="tag" style="background: #e8f4fd; color: #3498db; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8em;">
+                    {{ log.action_type }}
+                </span>
+                {{ log.description }}
                 <em style="color: #888;">({{ log.household_name }})</em>
+            </div>
+            {% else %}
+            <div style="text-align: center; color: #999; padding: 20px;">
+                No activity recorded yet.
             </div>
             {% endfor %}
         </div>

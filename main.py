@@ -137,6 +137,7 @@ async def admin_dashboard(
     except Exception as e:
         print(f"ADMIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Database error in Admin panel")
+
 @app.post("/admin/revoke-access/{m_id}")
 async def revoke_access(
     m_id: int, 
@@ -169,6 +170,14 @@ async def link_user_to_household(
     
     url = f"/admin?return_to={return_to}" if return_to else "/admin"
     return RedirectResponse(url=url, status_code=303)
+
+@app.post("/admin/clear-logs")
+async def clear_logs(email: str = Depends(get_current_user_email)):
+    if email != "dbfletcher@gmail.com":
+        raise HTTPException(status_code=403)
+    
+    await database.execute("TRUNCATE TABLE activity_log")
+    return RedirectResponse(url="/admin", status_code=303)
 
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
@@ -418,44 +427,37 @@ async def delete_location_photo(bin_id: int, email: str = Depends(get_current_us
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
 
 @app.post("/delete-bin/{bin_id}")
-async def delete_bin(bin_id: int):
-    """Moves items to an 'Unassigned' bin before deleting the bin record."""
-    # 1. Get current bin details to find the household
-    bin_data = await database.fetch_one("SELECT household_id FROM bin WHERE id = :bid", {"bid": bin_id})
-    if not bin_data:
-        raise HTTPException(status_code=404, detail="Bin not found")
-    
-    hh_id = bin_data['household_id']
+async def delete_bin(bin_id: int, email: str = Depends(get_current_user_email)):
+    # 1. Fetch bin info and household context
+    bin_info = await database.fetch_one("SELECT name, household_id FROM bin WHERE id = :bid", {"bid": bin_id})
+    if not bin_info:
+        raise HTTPException(status_code=404)
 
-    # 2. Ensure an 'Unassigned' bin exists for this household
-    unassigned_bin = await database.fetch_one(
-        "SELECT id FROM bin WHERE name = 'Unassigned' AND household_id = :hid", 
-        {"hid": hh_id}
+    # 2. Find or create the 'Unassigned' bin for this household
+    unassigned = await database.fetch_one(
+        "SELECT id FROM bin WHERE household_id = :hid AND name = 'Unassigned'", 
+        {"hid": bin_info['household_id']}
     )
     
-    if not unassigned_bin:
-        # Create it if it's missing
-        unassigned_id = await database.execute(
-            "INSERT INTO bin (name, household_id) VALUES ('Unassigned', :hid)",
-            {"hid": hh_id}
+    # 3. Move items to Unassigned and then delete the bin
+    if unassigned:
+        await database.execute(
+            "UPDATE items SET bin_id = :unid WHERE bin_id = :bid", 
+            {"unid": unassigned['id'], "bid": bin_id}
         )
-    else:
-        unassigned_id = unassigned_bin['id']
 
-    # 3. Prevent deleting the Unassigned bin itself
-    if bin_id == unassigned_id:
-        return RedirectResponse(url=f"/bins/{hh_id}?error=Cannot delete the Unassigned bin", status_code=303)
-
-    # 4. Move all items to the Unassigned bin
-    await database.execute(
-        "UPDATE items SET bin_id = :uid WHERE bin_id = :bid",
-        {"uid": unassigned_id, "bid": bin_id}
-    )
-    
-    # 5. Finally, delete the now-empty bin
     await database.execute("DELETE FROM bin WHERE id = :bid", {"bid": bin_id})
-    
-    return RedirectResponse(url=f"/bins/{hh_id}", status_code=303)
+
+    # 4. Log the "Retirement"
+    await log_activity(
+        email, 
+        bin_info['household_id'], 
+        "DELETE", 
+        f"Retired bin '{bin_info['name']}'. All contents moved to 'Unassigned' bin."
+    )
+
+    return RedirectResponse(url=f"/bins/{bin_info['household_id']}", status_code=303)
+
 # --- Item (Part) Management ---
 
 @app.post("/add-item/{bin_id}")
@@ -562,16 +564,29 @@ async def edit_item(
 
     return RedirectResponse(url=f"/bins/{current_bin['household_id']}", status_code=303)
 
-@app.post("/delete-item-photo/{item_id}")
-async def delete_item_photo(item_id: int, email: str = Depends(get_current_user_email)):
-    """Removes part photo from disk and database."""
-    res = await database.fetch_one("SELECT b.household_id, i.high_res_image FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", {"iid": item_id})
-    if res and res['high_res_image']:
-        for folder in [HIGHRES_DIR, LOWRES_DIR]:
-            path = os.path.join(folder, res['high_res_image'])
-            if os.path.exists(path): os.remove(path)
-    await database.execute("UPDATE items SET high_res_image = NULL WHERE id = :iid", {"iid": item_id})
-    return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
+@app.post("/delete-item/{item_id}")
+async def delete_item(item_id: int, email: str = Depends(get_current_user_email)):
+    # 1. Get info before it's gone for the log
+    item = await database.fetch_one("""
+        SELECT i.name, b.household_id, b.name as bin_name 
+        FROM items i 
+        JOIN bin b ON i.bin_id = b.id 
+        WHERE i.id = :iid
+    """, {"iid": item_id})
+    
+    if not item:
+        raise HTTPException(status_code=404)
+
+    # 2. Delete and Log
+    await database.execute("DELETE FROM items WHERE id = :iid", {"iid": item_id})
+    await log_activity(
+        email, 
+        item['household_id'], 
+        "DELETE", 
+        f"Permanently deleted '{item['name']}' from bin '{item['bin_name']}'"
+    )
+    
+    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
 
 @app.post("/delete-item/{item_id}")
 async def delete_item(item_id: int, email: str = Depends(get_current_user_email)):
