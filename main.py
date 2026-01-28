@@ -93,12 +93,13 @@ async def admin_dashboard(
         users = await database.fetch_all("SELECT id, email FROM users")
         households = await database.fetch_all("SELECT id, name FROM households")
         
-        # Use the new 'id' column we just added via Goose
+        # Fetch memberships sorted by newest first for the sidebar
         memberships = await database.fetch_all("""
-            SELECT m.id as membership_id, u.email, h.name as household_name
+            SELECT m.id as membership_id, u.email, h.name as household_name, m.created_at
             FROM memberships m
             JOIN users u ON m.user_id = u.id
             JOIN households h ON m.household_id = h.id
+            ORDER BY m.created_at DESC
         """)
 
         return templates.TemplateResponse("admin.html", {
@@ -112,6 +113,39 @@ async def admin_dashboard(
     except Exception as e:
         print(f"ADMIN ERROR: {e}")
         raise HTTPException(status_code=500, detail="Database error in Admin panel")
+
+@app.post("/admin/revoke-access/{m_id}")
+async def revoke_access(
+    m_id: int, 
+    return_to: int = None, 
+    email: str = Depends(get_current_user_email)
+):
+    """Removes a user's access to a household"""
+    if email != "dbfletcher@gmail.com":
+        raise HTTPException(status_code=403)
+
+    await database.execute("DELETE FROM memberships WHERE id = :mid", {"mid": m_id})
+    
+    # Redirect back to admin while preserving the return path
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
+
+@app.post("/admin/link-user")
+async def link_user_to_household(
+    user_id: int = Form(...), 
+    household_id: int = Form(...), 
+    return_to: int = None,
+    email: str = Depends(get_current_user_email)
+):
+    """Creates a new membership record"""
+    if email != "dbfletcher@gmail.com":
+        raise HTTPException(status_code=403)
+        
+    query = "INSERT IGNORE INTO memberships (user_id, household_id) VALUES (:uid, :hid)"
+    await database.execute(query, {"uid": user_id, "hid": household_id})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):
