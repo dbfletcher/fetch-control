@@ -244,17 +244,6 @@
                                     </form>
                                 {% endif %}
                             </div>
-
-                            <div class="item-thumb-container">
-                                {% if item.high_res_image %}
-                                    <a href="/highres/{{ item.high_res_image }}" target="_blank">
-                                        <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" title="High-res">
-                                    </a>
-                                    <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Are you sure you want to delete this part photo?')">
-                                        <button type="submit" class="btn-delete-photo">×</button>
-                                    </form>
-                                {% endif %}
-                            </div>
                             <div style="flex-grow:1; margin-left:15px;">
                                 <div style="display:flex; justify-content:space-between;">
                                     <span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600;">{{ item.quantity }}x {{ item.name }}</span>
