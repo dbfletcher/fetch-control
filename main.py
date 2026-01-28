@@ -172,12 +172,18 @@ async def link_user_to_household(
     return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/clear-logs")
-async def clear_logs(email: str = Depends(get_current_user_email)):
+async def clear_logs(
+    return_to: int = None, # Capture the household context
+    email: str = Depends(get_current_user_email)
+):
     if email != "dbfletcher@gmail.com":
         raise HTTPException(status_code=403)
     
     await database.execute("TRUNCATE TABLE activity_log")
-    return RedirectResponse(url="/admin", status_code=303)
+    
+    # Preserve the return path in the redirect
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.get("/", response_class=HTMLResponse)
 async def welcome(request: Request, email: str = Depends(get_current_user_email)):

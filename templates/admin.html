@@ -64,7 +64,7 @@
     <div class="admin-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0;">🛠️ Recent Activity Feed</h3>
-            <form action="/admin/clear-logs" method="post" onsubmit="return confirm('Wipe all activity history? This cannot be undone.')">
+            <form action="/admin/clear-logs{% if return_id %}?return_to={{ return_id }}{% endif %}" method="post" onsubmit="return confirm('Wipe all activity history?')">
                 <button type="submit" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:0.8em; cursor:pointer; font-weight:bold;">
                     🗑️ Clear All History
                 </button>
