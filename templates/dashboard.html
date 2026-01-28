@@ -129,6 +129,10 @@
                 <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="display:block; text-align:center; text-decoration:none; background:var(--accent);">
                     🖨️ Batch Print Labels
                 </a>
+		<a href="/global-search" class="btn-save"
+		   style="display:block; text-align:center; text-decoration:none; background:#9b59b6; margin-top:10px;">
+		    🔍 Global Inventory Search
+		</a>
             </div>
             {% endif %}
         </div>
@@ -153,11 +157,14 @@
         </div>
 
         {% if current_household_id %}
-        <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
-            <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." 
-                   onkeyup="filterInventory()" 
-                   style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); outline: none;">
-        </div>
+	<div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
+	    <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." onkeyup="filterInventory()" 
+	           style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; outline: none;">
+	    <div style="margin-top: 8px; font-size: 0.8em; color: #666; display: flex; align-items: center; gap: 8px;">
+	        <input type="checkbox" id="searchMetadata" onchange="filterInventory()"> 
+	        <label for="searchMetadata">Include hidden metadata (Descriptions/Specs)</label>
+	    </div>
+	</div>
         {% endif %}
 
         <div class="bin-grid">
@@ -316,14 +323,25 @@
             else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); }
         }
 
-        function filterInventory() {
-            const input = document.getElementById('globalSearch').value.toLowerCase();
-            const cards = document.getElementsByClassName('bin-card');
-            for (let card of cards) {
-                const text = card.innerText.toLowerCase();
-                card.style.display = text.includes(input) ? "" : "none";
-            }
-        }
+	function filterInventory() {
+	    const input = document.getElementById('globalSearch').value.toLowerCase();
+	    const includeMetadata = document.getElementById('searchMetadata').checked;
+	    const cards = document.getElementsByClassName('bin-card');
+
+	    for (let card of cards) {
+	        let textToSearch = card.innerText.toLowerCase();
+	        
+	        // If toggle is on, grab the text from all textareas/hidden specs
+	        if (includeMetadata) {
+	            const hiddenSpecs = card.querySelectorAll('textarea, [name="description"]');
+	            hiddenSpecs.forEach(el => {
+	                textToSearch += " " + el.value.toLowerCase();
+	            });
+	        }
+	        
+	        card.style.display = textToSearch.includes(input) ? "" : "none";
+	    }
+	}
 
         function generateQR(binId, binName) {
             const qrContainer = document.getElementById(`qr-${binId}`);

@@ -160,6 +160,32 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
         "error_location_id": request.query_params.get("location_id")
     })
 
+@app.get("/global-search", response_class=HTMLResponse)
+async def global_search(request: Request, q: str = None, email: str = Depends(get_current_user_email)):
+    households = await get_user_households(email)
+    results = []
+    
+    if q:
+        # Search item names, descriptions, and bin names across all authorized households
+        query = """
+            SELECT i.*, b.name as bin_name, h.name as household_name
+            FROM items i
+            JOIN bin b ON i.bin_id = b.id
+            JOIN households h ON b.household_id = h.id
+            JOIN memberships m ON h.id = m.household_id
+            JOIN users u ON m.user_id = u.id
+            WHERE u.email = :email 
+            AND (i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q)
+        """
+        results = await database.fetch_all(query, {"email": email, "q": f"%{q}%"})
+
+    return templates.TemplateResponse("global_search.html", {
+        "request": request,
+        "results": results,
+        "query": q,
+        "available_households": households
+    })
+
 @app.get("/print-labels/{household_id}", response_class=HTMLResponse)
 async def print_labels_page(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
