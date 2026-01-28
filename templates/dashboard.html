@@ -329,17 +329,33 @@
 	    const cards = document.getElementsByClassName('bin-card');
 
 	    for (let card of cards) {
-	        let textToSearch = card.innerText.toLowerCase();
-	        
-	        // If toggle is on, grab the text from all textareas/hidden specs
-	        if (includeMetadata) {
-	            const hiddenSpecs = card.querySelectorAll('textarea, [name="description"]');
-	            hiddenSpecs.forEach(el => {
-	                textToSearch += " " + el.value.toLowerCase();
-	            });
+	        const itemRows = card.getElementsByClassName('item-row');
+	        let binHasMatch = false;
+
+	        // 1. First, check the Bin Name/Area for a match
+	        const binHeader = card.querySelector('h3').innerText.toLowerCase();
+	        const areaTag = card.querySelector('span[style*="background:#f0f0f0"]')?.innerText.toLowerCase() || "";
+	        const binHeaderMatch = binHeader.includes(input) || areaTag.includes(input);
+
+	        // 2. Loop through each item in the bin
+	        for (let row of itemRows) {
+	            let itemText = row.innerText.toLowerCase();
+	            
+	            if (includeMetadata) {
+	                // Look for the metadata textarea specifically for this item
+	                const metadata = row.nextElementSibling?.querySelector('textarea');
+	                if (metadata) { itemText += " " + metadata.value.toLowerCase(); }
+	            }
+
+	            // An item matches if it hits the search term OR if the bin header matches
+	            const isMatch = itemText.includes(input) || binHeaderMatch;
+	            row.style.display = isMatch ? "flex" : "none";
+	            
+	            if (isMatch) binHasMatch = true;
 	        }
-	        
-	        card.style.display = textToSearch.includes(input) ? "" : "none";
+
+	        // 3. Hide the entire bin only if nothing inside (or the header) matches
+	        card.style.display = (binHasMatch || binHeaderMatch) ? "" : "none";
 	    }
 	}
 
