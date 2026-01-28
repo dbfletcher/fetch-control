@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Global Search - Project Fetch</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f0f2f5; }
+        .search-container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 1.1em; margin-bottom: 20px; }
+        .result-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .tag { font-size: 0.75em; background: #eee; padding: 4px 10px; border-radius: 4px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <a href="/" style="text-decoration:none; color:#3498db;">← Back to Dashboard</a>
+        <h2 style="margin-top:20px;">🔍 Global Inventory Search</h2>
+        
+        <form action="/global-search" method="get">
+            <input type="text" name="q" value="{{ query or '' }}" placeholder="Search all households, bins, and descriptions..." autofocus>
+        </form>
+
+        {% if results %}
+            <p style="color:#666;">Found {{ results|length }} results for "{{ query }}":</p>
+            {% for item in results %}
+                <div class="result-card">
+                    <div>
+                        <strong style="font-size:1.1em;">{{ item.name }}</strong><br>
+                        <span style="color:#888; font-size:0.9em;">{{ item.description or 'No description' }}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="tag">🏠 {{ item.household_name }}</span>
+                        <span class="tag">📦 {{ item.bin_name }}</span><br>
+                        <a href="/bins/{{ item.household_id }}" style="font-size:0.8em; color:#3498db; text-decoration:none; display:block; margin-top:5px;">View in Dashboard →</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% elif query %}
+            <p>No items found matching "{{ query }}".</p>
+        {% endif %}
+    </div>
+</body>
+</html>
