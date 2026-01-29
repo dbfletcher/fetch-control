@@ -3,39 +3,33 @@
 <head>
     <title>Global Search - Project Fetch</title>
     <style>
-        :root { --primary: #3498db; --accent: #27ae60; --sidebar-bg: #2c3e50; }
+        :root { --primary: #3498db; --sidebar-bg: #2c3e50; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; background: #f0f2f5; margin: 0; }
-        
         .search-container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         input[type="text"] { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 1.1em; margin-bottom: 20px; box-sizing: border-box; outline: none; }
-        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); }
-        
         .result-card { border-bottom: 1px solid #eee; padding: 20px 0; display: flex; justify-content: space-between; align-items: flex-start; }
-        .result-card:last-child { border-bottom: none; }
         
-        /* Breadcrumb Styling for the Workshop Path */
+        /* Breadcrumb Styling */
         .breadcrumb-trail { font-size: 0.72em; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
         .breadcrumb-trail a { color: var(--primary); text-decoration: none; font-weight: bold; }
-        .breadcrumb-trail a:hover { text-decoration: underline; }
         .breadcrumb-trail .separator { margin: 0 4px; opacity: 0.5; }
 
         .tag { font-size: 0.75em; background: #f8f9fa; padding: 4px 10px; border-radius: 4px; color: #666; border: 1px solid #eee; display: inline-block; margin-bottom: 5px; }
-        .view-link { font-size: 0.85em; color: var(--primary); text-decoration: none; font-weight: bold; display: block; margin-top: 10px; transition: 0.2s; }
-        .view-link:hover { color: #2980b9; transform: translateX(5px); }
+        .view-link { font-size: 0.85em; color: var(--primary); text-decoration: none; font-weight: bold; display: block; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="search-container">
-        <a href="/" style="text-decoration:none; color:var(--primary); font-weight: bold;">← Back to Dashboard</a>
+        <a href="/bins/{{ return_to or 1 }}" style="text-decoration:none; color:var(--primary); font-weight: bold;">← Back to Dashboard</a>
         <h2 style="margin-top:20px; color: var(--sidebar-bg);">🔍 Global Inventory Search</h2>
 
         <form action="/global-search" method="get">
+            <input type="hidden" name="return_to" value="{{ return_to }}">
             <input type="text" name="q" value="{{ query or '' }}" placeholder="Search all households, bins, and descriptions..." autofocus>
         </form>
 
         {% if results %}
             <p style="color:#666;">Found <strong>{{ results|length }}</strong> results for "{{ query }}":</p>
-            
             {% for item in results %}
                 <div class="result-card">
                     <div style="flex-grow: 1; padding-right: 20px;">
@@ -49,23 +43,22 @@
                         {% endif %}
 
                         <strong style="font-size:1.2em; color: #333;">{{ item.name }}</strong><br>
-                        <span style="color:#666; font-size:0.95em; line-height: 1.5;">{{ item.description or 'No description' }}</span>
+                        <span style="color:#666; font-size:0.95em;">{{ item.description or 'No description' }}</span>
                     </div>
 
                     <div style="text-align:right; min-width: 180px;">
                         <span class="tag">🏠 {{ item.household_name }}</span><br>
                         <span class="tag">📦 {{ item.bin_name }}</span>
                         
-                        <a href="/bins/{{ item.household_id }}#bin-{{ item.bin_id }}" class="view-link">
-                            Go to Location in {{ item.household_name }} →
+                        {# Use household_id from the result to ensure the link works across all areas #}
+                        <a href="/bins/{{ item.household_id }}#bin-{{ item.bin_id or item.id }}" class="view-link">
+                            View in {{ item.household_name }} →
                         </a>
                     </div>
                 </div>
             {% endfor %}
         {% elif query %}
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <p>No items found matching "<strong>{{ query }}</strong>".</p>
-            </div>
+            <p>No items found matching "<strong>{{ query }}</strong>".</p>
         {% endif %}
     </div>
 </body>

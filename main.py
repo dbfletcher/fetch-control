@@ -289,30 +289,29 @@ async def get_bin_path(bin_id: int):
     return path[:-1] # Exclude the bin itself from the breadcrumb path
 
 @app.get("/global-search")
-async def global_search(q: str = "", return_to: int = None):
-    # ... existing search logic to find bins and items ...
+async def global_search(q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
+    # ... your existing logic that populates 'results' ...
+    # Let's assume 'results' contains your matched items/bins
     
-    # Process Bins
-    bin_results = []
-    for b in found_bins:
-        path = await get_bin_path(b['id'])
-        bin_results.append({**dict(b), "path": path})
+    final_results = []
+    for item in results:
+        # Convert record to dict so we can add the path
+        item_dict = dict(item)
         
-    # Process Items
-    item_results = []
-    for i in found_items:
-        # Items are inside a bin, so get the path for that bin
-        path = await get_bin_path(i['bin_id'])
-        # Also include the bin name as the final step of the path for items
-        bin_info = await database.fetch_one("SELECT id, name FROM bin WHERE id = :bid", {"bid": i['bin_id']})
-        full_path = path + [{"id": bin_info['id'], "name": bin_info['name']}]
-        item_results.append({**dict(i), "path": full_path})
+        # If it's a bin result, get path for itself. If it's a part, get path for its bin.
+        target_bin_id = item_dict.get('id') if 'bin_id' not in item_dict else item_dict.get('bin_id')
+        
+        if target_bin_id:
+            item_dict['path'] = await get_bin_path(target_bin_id)
+        
+        final_results.append(item_dict)
 
     return templates.TemplateResponse("global_search.html", {
-        "results_bins": bin_results,
-        "results_items": item_results,
+        "request": request,
+        "results": final_results,
         "query": q,
-        "return_to": return_to
+        "return_to": return_to,
+        "email": email
     })
 
 @app.get("/print-labels/{household_id}", response_class=HTMLResponse)
