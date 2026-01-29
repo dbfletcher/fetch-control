@@ -7,11 +7,12 @@
 
     {# Added id="bin-{{ bin.id }}" to enable jump-links from breadcrumbs #}
     <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }}; margin-bottom: 25px; scroll-margin-top: 80px;">
-        
-        <div class="bin-photo-container" style="height: {{ header_height }}px; background: #dfe6e9; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+
+        <div class="bin-photo-container" style="height: {{ header_height }}px; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
             {% if bin.location_image %}
                 <a href="/highres/{{ bin.location_image }}" target="_blank">
-                    <img src="/lowres/{{ bin.location_image }}" title="Click for High-res" style="width: 100%; height: 100%; object-fit: cover;">
+                    {# UPDATED: object-fit: contain shows the full image without cropping #}
+                    <img src="/lowres/{{ bin.location_image }}" title="Click for High-res" style="width: 100%; height: 100%; object-fit: contain;">
                 </a>
                 <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
                     <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
@@ -25,11 +26,11 @@
         </div>
 
         <div style="padding: 20px; border-top: 5px solid var(--primary);">
-            
+
             {% if path %}
             <div style="font-size: 0.72em; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
                 {% for step in path %}
-                    <a href="#bin-{{ step.id }}" style="color: var(--primary); text-decoration: none; font-weight: bold;">{{ step.name }}</a> 
+                    <a href="#bin-{{ step.id }}" style="color: var(--primary); text-decoration: none; font-weight: bold;">{{ step.name }}</a>
                     <span style="margin: 0 4px; opacity: 0.5;">&gt;</span>
                 {% endfor %}
             </div>
@@ -84,10 +85,11 @@
                 </summary>
                 {% for item in bin_items %}
                     <div class="item-row" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
-                        <div class="item-thumb-container" style="position: relative; width: {{ thumb_size }}px; height: {{ thumb_size }}px; flex-shrink: 0;">
+                        <div class="item-thumb-container" style="position: relative; width: {{ thumb_size }}px; height: {{ thumb_size }}px; flex-shrink: 0; background: #fff; border: 1px solid #eee; border-radius: 4px; overflow: hidden;">
                             {% if item.high_res_image %}
                                 <a href="/highres/{{ item.high_res_image }}" target="_blank">
-                                    <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" style="width:100%; height:100%; object-fit:cover;">
+                                    {# UPDATED: object-fit: contain ensures full part visibility #}
+                                    <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" style="width:100%; height:100%; object-fit:contain;">
                                 </a>
                                 <form action="/delete-item-photo/{{ item.id }}" method="post" style="position:absolute; top:-5px; right:-5px;" onsubmit="return confirm('Delete photo?')">
                                     <button type="submit" class="btn-delete-photo" style="width:20px; height:20px; font-size:12px;">×</button>
@@ -121,7 +123,7 @@
                             </div>
                             <input type="url" name="item_url" value="{{ item.item_url or '' }}" placeholder="Vendor/Amazon URL" style="width:100%; margin-bottom:10px; padding:8px; border-radius:4px; border:1px solid #ccc;">
                             <textarea name="description" placeholder="Technical Specs/Dimensions" style="width:100%; height:60px; margin-bottom:10px; padding:8px; border-radius:4px; border:1px solid #ccc;">{{ item.description or '' }}</textarea>
-                            
+
                             <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.8em; color:#666;">Move to Bin:</label>
                             <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
                                 {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
@@ -202,7 +204,7 @@
                     </div>
                 {% endfor %}
                 <form action="/add-location/{{ current_household_id }}" method="post"><input type="text" name="name" placeholder="+ Add Area" required></form>
-                
+
                 <p style="font-size: 0.7em; opacity: 0.5; margin-top:20px;">New Bin</p>
                 <form action="/add-bin/{{ current_household_id }}" method="post">
                     <input type="text" name="name" placeholder="Bin Name" required>
@@ -215,12 +217,12 @@
                 <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="display:block; text-align:center; text-decoration:none; background:var(--accent);">
                     🖨️ Batch Print Labels
                 </a>
-                <a href="/global-search?return_to={{ current_household_id }}" class="btn-save" 
+                <a href="/global-search?return_to={{ current_household_id }}" class="btn-save"
                     style="display:block; text-align:center; text-decoration:none; background:#9b59b6; margin-top:10px;">
                         🔍 Global Inventory Search
                 </a>
                 {% if email == 'dbfletcher@gmail.com' %}
-                <a href="/admin?return_to={{ current_household_id }}" class="btn-save" 
+                <a href="/admin?return_to={{ current_household_id }}" class="btn-save"
                    style="background:#444; margin-top:10px; text-decoration:none; display:block; text-align:center;">
                     ⚙️ Admin Control Panel
                 </a>
@@ -240,7 +242,7 @@
         <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
             <input type="text" id="globalSearch" placeholder="🔍 Search parts or metadata..." onkeyup="filterInventory()" style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; outline: none;">
             <div style="margin-top: 8px; font-size: 0.8em; color: #666; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="searchMetadata" onchange="filterInventory()"> 
+                <input type="checkbox" id="searchMetadata" onchange="filterInventory()">
                 <label for="searchMetadata">Include hidden metadata (Specs/URLs)</label>
             </div>
         </div>
@@ -284,9 +286,9 @@
                     }
                     const isMatch = (input.length > 0 && text.includes(input)) || binMatch;
                     row.style.display = isMatch ? "flex" : "none";
-                    if (isMatch && input.length > 0) { 
-                        binHasMatch = true; 
-                        if (itemsDetails) itemsDetails.open = true; 
+                    if (isMatch && input.length > 0) {
+                        binHasMatch = true;
+                        if (itemsDetails) itemsDetails.open = true;
                     }
                 }
                 if (input.length === 0 && itemsDetails) { itemsDetails.open = false; }
