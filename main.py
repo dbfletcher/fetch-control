@@ -266,46 +266,50 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     })
 
 async def get_bin_path(bin_id: int):
-    """Recursively fetch the parent hierarchy for a bin."""
     path = []
     current_id = bin_id
-    
-    # Limit to prevent infinite loops in case of data corruption
-    for _ in range(10): 
-        parent = await database.fetch_one(
+    # Max depth of 10 to prevent any potential infinite loops
+    for _ in range(10):
+        res = await database.fetch_one(
             "SELECT id, name, parent_bin_id FROM bin WHERE id = :id", 
             {"id": current_id}
         )
-        if not parent:
-            break
+        if not res: break
         
-        # Add to the beginning of the list to maintain 'Top > Bottom' order
-        path.insert(0, {"id": parent['id'], "name": parent['name']})
-        
-        if parent['parent_bin_id'] is None:
-            break
-        current_id = parent['parent_bin_id']
-        
-    return path[:-1] # Exclude the bin itself from the breadcrumb path
+        # Don't add the bin itself to its own breadcrumb trail
+        if current_id != bin_id:
+            path.insert(0, {"id": res['id'], "name": res['name']})
+            
+        if res['parent_bin_id'] is None: break
+        current_id = res['parent_bin_id']
+    return path
 
 @app.get("/global-search")
-async def global_search(q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
-    # ... your existing logic that populates 'results' ...
-    # Let's assume 'results' contains your matched items/bins
+async def global_search(request: Request, q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
+    # 1. Fetch search results from MariaDB
+    # This query finds matching items and their associated bin/household info
+    query = """
+        SELECT i.*, b.name as bin_name, b.id as bin_id, h.name as household_name, h.id as household_id
+        FROM items i
+        JOIN bin b ON i.bin_id = b.id
+        JOIN households h ON b.household_id = h.id
+        WHERE i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q
+    """
+    # Define 'results' here so it exists for the next step
+    results = await database.fetch_all(query, {"q": f"%{q}%"})
     
     final_results = []
     for item in results:
-        # Convert record to dict so we can add the path
+        # Convert the database record to a dictionary
         item_dict = dict(item)
         
-        # If it's a bin result, get path for itself. If it's a part, get path for its bin.
-        target_bin_id = item_dict.get('id') if 'bin_id' not in item_dict else item_dict.get('bin_id')
-        
-        if target_bin_id:
-            item_dict['path'] = await get_bin_path(target_bin_id)
+        # 2. Attach the clickable breadcrumb path
+        # We fetch the path for the bin this item lives in
+        item_dict['path'] = await get_bin_path(item_dict['bin_id'])
         
         final_results.append(item_dict)
 
+    # 3. Return the template with the correctly defined results
     return templates.TemplateResponse("global_search.html", {
         "request": request,
         "results": final_results,
