@@ -3,39 +3,69 @@
 <head>
     <title>Global Search - Project Fetch</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f0f2f5; }
+        :root { --primary: #3498db; --accent: #27ae60; --sidebar-bg: #2c3e50; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; background: #f0f2f5; margin: 0; }
+        
         .search-container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 1.1em; margin-bottom: 20px; }
-        .result-card { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
-        .tag { font-size: 0.75em; background: #eee; padding: 4px 10px; border-radius: 4px; color: #666; }
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 1.1em; margin-bottom: 20px; box-sizing: border-box; outline: none; }
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2); }
+        
+        .result-card { border-bottom: 1px solid #eee; padding: 20px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+        .result-card:last-child { border-bottom: none; }
+        
+        /* Breadcrumb Styling for the Workshop Path */
+        .breadcrumb-trail { font-size: 0.72em; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .breadcrumb-trail a { color: var(--primary); text-decoration: none; font-weight: bold; }
+        .breadcrumb-trail a:hover { text-decoration: underline; }
+        .breadcrumb-trail .separator { margin: 0 4px; opacity: 0.5; }
+
+        .tag { font-size: 0.75em; background: #f8f9fa; padding: 4px 10px; border-radius: 4px; color: #666; border: 1px solid #eee; display: inline-block; margin-bottom: 5px; }
+        .view-link { font-size: 0.85em; color: var(--primary); text-decoration: none; font-weight: bold; display: block; margin-top: 10px; transition: 0.2s; }
+        .view-link:hover { color: #2980b9; transform: translateX(5px); }
     </style>
 </head>
 <body>
     <div class="search-container">
-        <a href="/" style="text-decoration:none; color:#3498db;">← Back to Dashboard</a>
-        <h2 style="margin-top:20px;">🔍 Global Inventory Search</h2>
-        
+        <a href="/" style="text-decoration:none; color:var(--primary); font-weight: bold;">← Back to Dashboard</a>
+        <h2 style="margin-top:20px; color: var(--sidebar-bg);">🔍 Global Inventory Search</h2>
+
         <form action="/global-search" method="get">
             <input type="text" name="q" value="{{ query or '' }}" placeholder="Search all households, bins, and descriptions..." autofocus>
         </form>
 
         {% if results %}
-            <p style="color:#666;">Found {{ results|length }} results for "{{ query }}":</p>
+            <p style="color:#666;">Found <strong>{{ results|length }}</strong> results for "{{ query }}":</p>
+            
             {% for item in results %}
                 <div class="result-card">
-                    <div>
-                        <strong style="font-size:1.1em;">{{ item.name }}</strong><br>
-                        <span style="color:#888; font-size:0.9em;">{{ item.description or 'No description' }}</span>
+                    <div style="flex-grow: 1; padding-right: 20px;">
+                        {% if item.path %}
+                        <div class="breadcrumb-trail">
+                            {% for step in item.path %}
+                                <a href="/bins/{{ item.household_id }}#bin-{{ step.id }}">{{ step.name }}</a>
+                                <span class="separator">&gt;</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <strong style="font-size:1.2em; color: #333;">{{ item.name }}</strong><br>
+                        <span style="color:#666; font-size:0.95em; line-height: 1.5;">{{ item.description or 'No description' }}</span>
                     </div>
-                    <div style="text-align:right;">
-                        <span class="tag">🏠 {{ item.household_name }}</span>
-                        <span class="tag">📦 {{ item.bin_name }}</span><br>
-                        <a href="/bins/{{ item.household_id }}" style="font-size:0.8em; color:#3498db; text-decoration:none; display:block; margin-top:5px;">View in Dashboard →</a>
+
+                    <div style="text-align:right; min-width: 180px;">
+                        <span class="tag">🏠 {{ item.household_name }}</span><br>
+                        <span class="tag">📦 {{ item.bin_name }}</span>
+                        
+                        <a href="/bins/{{ item.household_id }}#bin-{{ item.bin_id }}" class="view-link">
+                            Go to Location in {{ item.household_name }} →
+                        </a>
                     </div>
                 </div>
             {% endfor %}
         {% elif query %}
-            <p>No items found matching "{{ query }}".</p>
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <p>No items found matching "<strong>{{ query }}</strong>".</p>
+            </div>
         {% endif %}
     </div>
 </body>

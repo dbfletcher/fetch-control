@@ -265,35 +265,54 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
         "error_location_id": request.query_params.get("location_id")
     })
 
-@app.get("/global-search", response_class=HTMLResponse)
-async def global_search(
-    request: Request, 
-    q: str = None, 
-    return_to: int = None, # Capture the previous household ID
-    email: str = Depends(get_current_user_email)
-):
-    households = await get_user_households(email)
-    results = []
+async def get_bin_path(bin_id: int):
+    """Recursively fetch the parent hierarchy for a bin."""
+    path = []
+    current_id = bin_id
     
-    if q:
-        query = """
-            SELECT i.*, b.name as bin_name, h.name as household_name, h.id as household_id
-            FROM items i
-            JOIN bin b ON i.bin_id = b.id
-            JOIN households h ON b.household_id = h.id
-            JOIN memberships m ON h.id = m.household_id
-            JOIN users u ON m.user_id = u.id
-            WHERE u.email = :email 
-            AND (i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q)
-        """
-        results = await database.fetch_all(query, {"email": email, "q": f"%{q}%"})
+    # Limit to prevent infinite loops in case of data corruption
+    for _ in range(10): 
+        parent = await database.fetch_one(
+            "SELECT id, name, parent_bin_id FROM bin WHERE id = :id", 
+            {"id": current_id}
+        )
+        if not parent:
+            break
+        
+        # Add to the beginning of the list to maintain 'Top > Bottom' order
+        path.insert(0, {"id": parent['id'], "name": parent['name']})
+        
+        if parent['parent_bin_id'] is None:
+            break
+        current_id = parent['parent_bin_id']
+        
+    return path[:-1] # Exclude the bin itself from the breadcrumb path
+
+@app.get("/global-search")
+async def global_search(q: str = "", return_to: int = None):
+    # ... existing search logic to find bins and items ...
+    
+    # Process Bins
+    bin_results = []
+    for b in found_bins:
+        path = await get_bin_path(b['id'])
+        bin_results.append({**dict(b), "path": path})
+        
+    # Process Items
+    item_results = []
+    for i in found_items:
+        # Items are inside a bin, so get the path for that bin
+        path = await get_bin_path(i['bin_id'])
+        # Also include the bin name as the final step of the path for items
+        bin_info = await database.fetch_one("SELECT id, name FROM bin WHERE id = :bid", {"bid": i['bin_id']})
+        full_path = path + [{"id": bin_info['id'], "name": bin_info['name']}]
+        item_results.append({**dict(i), "path": full_path})
 
     return templates.TemplateResponse("global_search.html", {
-        "request": request,
-        "results": results,
+        "results_bins": bin_results,
+        "results_items": item_results,
         "query": q,
-        "return_id": return_to, # Pass it to the template
-        "available_households": households
+        "return_to": return_to
     })
 
 @app.get("/print-labels/{household_id}", response_class=HTMLResponse)
