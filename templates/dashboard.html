@@ -27,14 +27,7 @@
         .bin-card { background: white; border-radius: 12px; border: 1px solid #e1e4e8; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         
         .bin-photo-container { 
-            width: 100%; 
-            height: 180px; 
-            background: #dfe6e9; 
-            overflow: hidden; 
-            position: relative; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            width: 100%; height: 180px; background: #dfe6e9; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; 
         }
         .bin-photo-container img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
         
@@ -42,45 +35,15 @@
         .item-thumb-container { position: relative; width: 50px; height: 50px; flex-shrink: 0; }
         .item-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; background: #eee; cursor: pointer; }
         
-        /* Red X Delete Buttons */
         .btn-delete-photo { 
-            position: absolute; 
-            top: -5px; 
-            right: -5px; 
-            background: var(--danger); 
-            color: white; 
-            border: none; 
-            border-radius: 50%; 
-            width: 22px; 
-            height: 22px; 
-            font-size: 14px; 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
-            z-index: 5; 
+            position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 5; 
         }
         .btn-save { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            font-weight: bold; 
-            cursor: pointer; 
-            padding: 10px; 
-            border-radius: 4px; 
-            width: 100%; 
-            /* Force matching sizes */
-            display: block; 
-            box-sizing: border-box; 
-            text-align: center;
-            line-height: 1.2; 
-            font-size: 14px; /* Ensure font size matches across tags */
+            background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; display: block; box-sizing: border-box; text-align: center; line-height: 1.2; font-size: 14px; 
         }
 
         .clickable { cursor: pointer; transition: 0.2s; }
         .clickable:hover { opacity: 0.7; color: var(--primary); }
-        .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; }
         .nested-box { margin-top: 12px; padding: 12px; background: #f1f8ff; border-radius: 8px; border-left: 4px solid var(--primary); }
         
         @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
@@ -163,29 +126,19 @@
         </div>
 
         {% if current_household_id %}
-	<div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
-	    <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." onkeyup="filterInventory()" 
-	           style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; outline: none;">
-	    <div style="margin-top: 8px; font-size: 0.8em; color: #666; display: flex; align-items: center; gap: 8px;">
-	        <input type="checkbox" id="searchMetadata" onchange="filterInventory()"> 
-	        <label for="searchMetadata">Include hidden metadata (Descriptions/Specs)</label>
-	    </div>
-	</div>
+        <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
+            <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." onkeyup="filterInventory()" 
+                   style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; outline: none;">
+            <div style="margin-top: 8px; font-size: 0.8em; color: #666; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="searchMetadata" onchange="filterInventory()"> 
+                <label for="searchMetadata">Include hidden metadata (Descriptions/Specs)</label>
+            </div>
+        </div>
         {% endif %}
 
         <div class="bin-grid">
             {% for bin in bins if not bin.parent_bin_id %}
-                {# Check if this bin has any items #}
                 {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
-                
-                {# Only show if it's NOT the Unassigned bin, OR if it has items #}
-                {% if bin.name != 'Unassigned' or bin_items | length > 0 %}
-        <div class="bin-grid">
-            {% for bin in bins if not bin.parent_bin_id %}
-                {# Check if this bin has any items #}
-                {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
-
-                {# Only show if it's NOT the Unassigned bin, OR if it has items #}
                 {% if bin.name != 'Unassigned' or bin_items | length > 0 %}
             <div class="bin-card">
                 <div class="bin-photo-container">
@@ -195,7 +148,7 @@
                         </a>
                         <form action="/delete-location-photo/{{ bin.id }}" method="post"
                               style="position:absolute; top:8px; right:8px;"
-                              onsubmit="return confirm('Are you sure you want to delete the bin photo?')">
+                              onsubmit="return confirm('Delete bin photo?')">
                             <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
                         </form>
                     {% else %}
@@ -215,25 +168,19 @@
                         <form action="/edit-bin/{{ bin.id }}" method="post">
                             <label style="font-size: 0.8em; font-weight: bold; color: #666;">Bin Name</label>
                             <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-
                             <label style="font-size: 0.8em; font-weight: bold; color: #666;">Location</label>
                             <select name="location_id" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
                                 <option value="None">-- No Area --</option>
                                 {% for loc in locations %}<option value="{{ loc.id }}" {% if bin.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
                             </select>
-
                             <div style="display:flex; gap:10px; margin-bottom: 15px;">
                                 <button type="submit" class="btn-save">Update</button>
                                 <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer;">Cancel</button>
                             </div>
                         </form>
-
                         <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                            <form action="/delete-bin/{{ bin.id }}" method="post"
-                                  onsubmit="return confirm('Items in this bin will be moved to the \'Unassigned\' bin. Delete this bin structure?')">
-                                <button type="submit" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer; font-weight:bold;">
-                                    🗑️ Retire Bin & Move Parts
-                                </button>
+                            <form action="/delete-bin/{{ bin.id }}" method="post" onsubmit="return confirm('Retire bin?')">
+                                <button type="submit" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer; font-weight:bold;">🗑️ Retire Bin</button>
                             </form>
                         </div>
                     </div>
@@ -242,24 +189,20 @@
                         <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px; outline: none;">
                             📦 View {{ bin_items | length }} Items
                         </summary>
-                        
                         {% for item in items if item.bin_id == bin.id %}
                             <div class="item-row">
                                 <div class="item-thumb-container">
                                     {% if item.high_res_image %}
                                         <a href="/highres/{{ item.high_res_image }}" target="_blank">
-                                            <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" title="High-res">
+                                            <img src="/lowres/{{ item.high_res_image }}" class="item-thumb">
                                         </a>
-                                        <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Delete part photo?')">
+                                        <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Delete photo?')">
                                             <button type="submit" class="btn-delete-photo">×</button>
                                         </form>
                                     {% else %}
                                         <form action="/upload-item-photo/{{ item.id }}" method="post" enctype="multipart/form-data" style="width:100%; height:100%;">
-                                            <input type="file" name="image" accept="image/*" capture="environment"
-                                                   onchange="handleFileSelect(this, this.form)" id="item-up-{{ item.id }}" style="display:none;">
-                                            <label for="item-up-{{ item.id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:50px; height:50px; background:#eee; border-radius:4px; color:var(--primary); font-size:20px; font-weight:bold; border:1px dashed #ccc;">
-                                                +
-                                            </label>
+                                            <input type="file" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="item-up-{{ item.id }}" style="display:none;">
+                                            <label for="item-up-{{ item.id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:50px; height:50px; background:#eee; border-radius:4px; color:var(--primary); font-size:20px;">+</label>
                                         </form>
                                     {% endif %}
                                 </div>
@@ -271,7 +214,6 @@
                                         </form>
                                     </div>
                                     <div style="color:var(--accent); font-weight:bold; font-size:0.9em;">${{ "{:.2f}".format(item.price) }}</div>
-                                    {% if item.item_url %}<a href="{{ item.item_url }}" target="_blank" style="font-size:0.75em; color:var(--primary); text-decoration:none;">🔗 View Link</a>{% endif %}
                                 </div>
                             </div>
                             
@@ -283,17 +225,10 @@
                                         <input type="number" name="quantity" value="{{ item.quantity }}" style="width:30%; padding:8px;">
                                         <input type="number" step="0.01" name="price" value="{{ item.price }}" style="width:70%; padding:8px;">
                                     </div>
-                                    <input type="url" name="item_url" value="{{ item.item_url or '' }}" placeholder="Amazon/McMaster URL" style="width:100%; margin-bottom:10px; padding:8px;">
-                                    <textarea name="description" placeholder="Technical Specs" style="width:100%; height:60px; margin-bottom:10px; padding:5px;">{{ item.description or '' }}</textarea>
                                     <label style="display:block; margin-bottom:5px; font-weight:bold;">Move to Bin:</label>
                                     <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
-                                        {% for b in bins %}
-                                            <option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>
-                                                {{ b.name }} {% if b.location_name %}(📍 {{ b.location_name }}){% endif %}
-                                            </option>
-                                        {% endfor %}
+                                        {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
                                     </select>
-                                    <div style="margin-bottom:15px;"><label style="font-size:0.7em; color:#888;">Update Photo</label><input type="file" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;"></div>
                                     <div style="display:flex; gap:10px;">
                                         <button type="submit" class="btn-save">Update</button>
                                         <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button>
@@ -318,10 +253,7 @@
                                 <input type="number" name="quantity" value="1" style="width:30%; padding:10px;">
                                 <input type="number" step="0.01" name="price" placeholder="$0.00" style="width:70%; padding:10px;">
                             </div>
-                            <textarea name="description" placeholder="Specs/Dimensions" style="width:100%; height:70px; margin-bottom:10px; padding:10px;"></textarea>
-                            <input type="url" name="item_url" placeholder="Vendor Link" style="width:100%; padding:10px; margin-bottom:10px;">
-                            <input type="file" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
-                            <button type="submit" class="btn-save" style="margin-top:20px;">Save Part to Inventory</button>
+                            <button type="submit" class="btn-save" style="margin-top:20px;">Save Part</button>
                         </form>
                     </details>
                 </div>
@@ -332,9 +264,7 @@
     </div>
 
     <div id="cropModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:2000; flex-direction:column; align-items:center; justify-content:center;">
-        <div style="width:90%; max-height:70vh; margin-bottom:20px;">
-            <img id="imageToCrop" style="max-width:100%; display:block;">
-        </div>
+        <div style="width:90%; max-height:70vh; margin-bottom:20px;"><img id="imageToCrop" style="max-width:100%; display:block;"></div>
         <div style="display:flex; gap:20px;">
             <button onclick="cancelCrop()" style="padding:15px 30px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold;">Cancel</button>
             <button onclick="executeCrop(event)" style="padding:15px 30px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold;">Save & Upload</button>
@@ -342,83 +272,38 @@
     </div>
 
     <script>
-        let cropper;
-        let currentForm;
-
+        let cropper; let currentForm;
         function toggleSidebar() {
-            const s = document.getElementById('sidebar');
-            const m = document.getElementById('mainContent');
+            const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent');
             if (window.innerWidth <= 768) { s.classList.toggle('active'); }
             else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); }
         }
 
-	function filterInventory() {
-	    const input = document.getElementById('globalSearch').value.toLowerCase();
-	    const includeMetadata = document.getElementById('searchMetadata').checked;
-	    const cards = document.getElementsByClassName('bin-card');
-
-	    for (let card of cards) {
-	        const itemRows = card.getElementsByClassName('item-row');
-	        let binHasMatch = false;
-
-	        // 1. First, check the Bin Name/Area for a match
-	        const binHeader = card.querySelector('h3').innerText.toLowerCase();
-	        const areaTag = card.querySelector('span[style*="background:#f0f0f0"]')?.innerText.toLowerCase() || "";
-	        const binHeaderMatch = binHeader.includes(input) || areaTag.includes(input);
-
-	        // 2. Loop through each item in the bin
-	        for (let row of itemRows) {
-	            let itemText = row.innerText.toLowerCase();
-	            
-	            if (includeMetadata) {
-	                // Look for the metadata textarea specifically for this item
-	                const metadata = row.nextElementSibling?.querySelector('textarea');
-	                if (metadata) { itemText += " " + metadata.value.toLowerCase(); }
-	            }
-
-	            // An item matches if it hits the search term OR if the bin header matches
-	            const isMatch = itemText.includes(input) || binHeaderMatch;
-	            row.style.display = isMatch ? "flex" : "none";
-	            
-	            if (isMatch) binHasMatch = true;
-	        }
-
-	        // 3. Hide the entire bin only if nothing inside (or the header) matches
-	        card.style.display = (binHasMatch || binHeaderMatch) ? "" : "none";
-	    }
-	}
-
-        function generateQR(binId, binName) {
-            const qrContainer = document.getElementById(`qr-${binId}`);
-            qrContainer.innerHTML = "";
-            const binUrl = `${window.location.origin}/bins/view/${binId}`;
-            new QRCode(qrContainer, { text: binUrl, width: 128, height: 128 });
-            setTimeout(() => {
-                const imgData = qrContainer.querySelector('img').src;
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(`
-                    <html>
-                        <body style="text-align:center; font-family:sans-serif; padding:40px;">
-                            <h1 style="margin-bottom:0;">${binName}</h1>
-                            <p style="margin-top:0; color:#666;">Project Fetch Inventory</p>
-                            <img src="${imgData}" style="width:250px; border: 10px solid white;">
-                            <p style="font-size:0.8em; color:#888;">Scan to view bin contents</p>
-                            <script>window.onload = function() { window.print(); setTimeout(window.close, 500); }<\/script>
-                        </body>
-                    </html>
-                `);
-            }, 500);
+        function filterInventory() {
+            const input = document.getElementById('globalSearch').value.toLowerCase();
+            const includeMetadata = document.getElementById('searchMetadata').checked;
+            const cards = document.getElementsByClassName('bin-card');
+            for (let card of cards) {
+                const itemRows = card.getElementsByClassName('item-row');
+                let binHasMatch = false;
+                const binHeader = card.querySelector('h3').innerText.toLowerCase();
+                const areaTag = card.querySelector('span[style*="background:#f0f0f0"]')?.innerText.toLowerCase() || "";
+                const binHeaderMatch = binHeader.includes(input) || areaTag.includes(input);
+                for (let row of itemRows) {
+                    let itemText = row.innerText.toLowerCase();
+                    const isMatch = itemText.includes(input) || binHeaderMatch;
+                    row.style.display = isMatch ? "flex" : "none";
+                    if (isMatch) binHasMatch = true;
+                }
+                card.style.display = (binHasMatch || binHeaderMatch) ? "" : "none";
+            }
         }
 
-        // --- Image Cropping Functions ---
         function handleFileSelect(input, form) {
-            const file = input.files[0];
-            if (!file) return;
-            currentForm = form;
+            const file = input.files[0]; if (!file) return; currentForm = form;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const img = document.getElementById('imageToCrop');
-                img.src = e.target.result;
+                const img = document.getElementById('imageToCrop'); img.src = e.target.result;
                 document.getElementById('cropModal').style.display = 'flex';
                 if (cropper) cropper.destroy();
                 cropper = new Cropper(img, { aspectRatio: NaN, viewMode: 1, dragMode: 'move' });
@@ -427,51 +312,19 @@
         }
 
         function executeCrop(e) {
-            const eventObj = e || window.event;
-            const saveBtn = eventObj ? eventObj.target : null;
-            
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerText = "Uploading...";
-            }
-
-            const canvas = cropper.getCroppedCanvas({ 
-                width: 1000, 
-                height: 1000, 
-                imageSmoothingQuality: 'medium' 
-            });
-
+            const eventObj = e || window.event; const saveBtn = eventObj ? eventObj.target : null;
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; }
+            const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 });
             canvas.toBlob((blob) => {
                 const formData = new FormData(currentForm);
-                
-                // Check if we are using the 'Quick Upload' (+) or the standard 'Edit' forms
-                // The backend expects 'image' for items and 'file' for bins
-                if (currentForm.action.includes('item-photo') || currentForm.action.includes('add-item') || currentForm.action.includes('edit-item')) {
+                if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) {
                     formData.set('image', blob, 'cropped_item.jpg'); 
-                } else {
-                    formData.set('file', blob, 'cropped_bin.jpg');
-                }
-
-                fetch(currentForm.action, { method: 'POST', body: formData })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        alert("Upload failed. Ensure all required fields are filled.");
-                        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "Save & Upload"; }
-                    }
-                })
-                .catch(err => {
-                    alert("Network error. Check your connection to the lab.");
-                    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "Save & Upload"; }
-                });
+                } else { formData.set('file', blob, 'cropped_bin.jpg'); }
+                fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload());
             }, 'image/jpeg', 0.8);
         }
 
-        function cancelCrop() {
-            document.getElementById('cropModal').style.display = 'none';
-            if (cropper) cropper.destroy();
-        }
+        function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
     </script>
 </body>
 </html>
