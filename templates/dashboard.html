@@ -1,4 +1,4 @@
-{# 1. RECURSIVE MACRO: Handles scaling, breadcrumbs, and prioritization #}
+{# 1. RECURSIVE MACRO: Handles scaling, breadcrumbs, prioritization, and lightbox popups #}
 {% macro render_bin(bin, level, items, bins, locations, current_household_id, path=[]) %}
     {# Scale height and width percentages based on depth level #}
     {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
@@ -10,10 +10,10 @@
 
         <div class="bin-photo-container" style="height: {{ header_height }}px; width: {{ header_width }}%; margin: 0 auto; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid #333;">
             {% if bin.location_image %}
-                <a href="/highres/{{ bin.location_image }}" target="_blank" style="width:100%; height:100%; display:flex; justify-content:center;">
+                <div onclick="openLightbox('/highres/{{ bin.location_image }}')" style="width:100%; height:100%; display:flex; justify-content:center; cursor: zoom-in;">
                     {# object-fit: contain prevents cropping of your inventory photos #}
-                    <img src="/lowres/{{ bin.location_image }}" title="Click for High-res" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                </a>
+                    <img src="/lowres/{{ bin.location_image }}" title="Click for Full View" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
                 <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
                     <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
                 </form>
@@ -85,9 +85,9 @@
                     <div class="item-row" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
                         <div class="item-thumb-container" style="position: relative; width: {{ thumb_size }}px; height: {{ thumb_size }}px; flex-shrink: 0; background: #fff; border: 1px solid #eee; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                             {% if item.high_res_image %}
-                                <a href="/highres/{{ item.high_res_image }}" target="_blank" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                                <div onclick="openLightbox('/highres/{{ item.high_res_image }}')" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; cursor: zoom-in;">
                                     <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" style="max-width:100%; max-height:100%; object-fit:contain;">
-                                </a>
+                                </div>
                                 <form action="/delete-item-photo/{{ item.id }}" method="post" style="position:absolute; top:-5px; right:-5px;" onsubmit="return confirm('Delete photo?')">
                                     <button type="submit" class="btn-delete-photo" style="width:20px; height:20px; font-size:12px;">×</button>
                                 </form>
@@ -233,7 +233,7 @@
         <div class="top-bar">
             <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
             <h2 style="margin: 0;">{{ household_name }}</h2>
-            <button onclick="document.querySelectorAll('details').forEach(d => d.open = false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 15px; font-weight: bold;">Collapse All</button>
+            <button onclick="document.querySelectorAll('.items-details').forEach(d => d.open = false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 15px; font-weight: bold;">Collapse All</button>
             <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold;">Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}</div>
         </div>
 
@@ -248,11 +248,15 @@
         <div class="bin-list-container">
             {% for bin in bins if not bin.parent_bin_id %}
                 {% if bin.name != 'Unassigned' %}
-                    {# Start top-level recursion #}
                     {{ render_bin(bin, 0, items, bins, locations, current_household_id, []) }}
                 {% endif %}
             {% endfor %}
         </div>
+    </div>
+
+    <div id="viewImageModal" onclick="closeLightbox()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; flex-direction:column; align-items:center; justify-content:center; cursor: zoom-out;">
+        <div style="position:absolute; top:20px; right:20px; color:white; font-size:40px; font-weight:bold; cursor:pointer;">&times;</div>
+        <img id="fullResImage" style="max-width:95%; max-height:95%; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
     </div>
 
     <div id="cropModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:2000; flex-direction:column; align-items:center; justify-content:center;">
@@ -264,6 +268,20 @@
         let cropper; let currentForm;
         function toggleSidebar() { const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent'); if (window.innerWidth <= 768) { s.classList.toggle('active'); } else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); } }
         
+        // Amazon-style Image Viewer Logic
+        function openLightbox(src) {
+            const modal = document.getElementById('viewImageModal');
+            const img = document.getElementById('fullResImage');
+            img.src = src;
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('viewImageModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
