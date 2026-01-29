@@ -1,6 +1,6 @@
-{# 1. RECURSIVE MACRO: Child bins now render before parent items #}
+{# 1. RECURSIVE MACRO: Restored with full photo, edit, and nesting capabilities #}
 {% macro render_bin(bin, level, items, bins, locations, current_household_id) %}
-    {# Scale UI elements based on depth level #}
+    {# Scale UI elements based on depth level for your Indiana workshop #}
     {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
     {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
     {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
@@ -168,16 +168,17 @@
         .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; text-align: center; display: block; }
         .clickable { cursor: pointer; transition: 0.2s; }
         .clickable:hover { color: var(--primary); }
-        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div style="padding: 25px;"><strong>📦 PROJECT FETCH</strong></div>
-        <div style="padding: 15px;">
+        <div style="padding: 25px; display: flex; justify-content: space-between; align-items: center;"><strong>📦 PROJECT FETCH</strong></div>
+        <div style="padding: 15px; flex-grow: 1; overflow-y: auto;">
+            <p style="font-size: 0.7em; opacity: 0.5; text-transform: uppercase;">Households</p>
             {% for hh in available_households %}
                 <a href="/bins/{{ hh.id }}" style="text-decoration:none; color:white; display:block; padding:12px; border-radius:8px; margin-bottom: 8px; {% if hh.id == current_household_id %}background:var(--primary);{% endif %}">{{ hh.name }}</a>
             {% endfor %}
+
             {% if current_household_id %}
             <div style="margin-top: 35px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
                 <p style="font-size: 0.7em; opacity: 0.5;">Physical Areas</p>
@@ -187,12 +188,29 @@
                     </div>
                 {% endfor %}
                 <form action="/add-location/{{ current_household_id }}" method="post"><input type="text" name="name" placeholder="+ Add Area" required></form>
+                
                 <p style="font-size: 0.7em; opacity: 0.5; margin-top:20px;">New Bin</p>
                 <form action="/add-bin/{{ current_household_id }}" method="post">
                     <input type="text" name="name" placeholder="Bin Name" required>
                     <select name="location_id"><option value="None">-- Select Area --</option>{% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }}</option>{% endfor %}</select>
+                    <select name="parent_bin_id"><option value="None">-- Top Level --</option>{% for b in bins %}<option value="{{ b.id }}">Inside: {{ b.name }}</option>{% endfor %}</select>
                     <button type="submit" class="btn-save">Create</button>
                 </form>
+
+                <p style="font-size: 0.7em; opacity: 0.5; margin-top:20px;">Tools</p>
+                <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="display:block; text-align:center; text-decoration:none; background:var(--accent);">
+                    🖨️ Batch Print Labels
+                </a>
+                <a href="/global-search?return_to={{ current_household_id }}" class="btn-save" 
+                    style="display:block; text-align:center; text-decoration:none; background:#9b59b6; margin-top:10px;">
+                        🔍 Global Inventory Search
+                </a>
+                {% if email == 'dbfletcher@gmail.com' %}
+                <a href="/admin?return_to={{ current_household_id }}" class="btn-save" 
+                   style="background:#444; margin-top:10px; text-decoration:none; display:block; text-align:center;">
+                    ⚙️ Admin Control Panel
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
