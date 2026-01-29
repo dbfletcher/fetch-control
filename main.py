@@ -374,21 +374,21 @@ async def add_bin(household_id: int, name: str = Form(...), location_id: str = F
 
 @app.post("/edit-bin/{bin_id}")
 async def edit_bin(
-    bin_id: int, 
-    name: str = Form(...), 
-    location_id: str = Form(None), 
-    parent_bin_id: str = Form(None), 
+    bin_id: int,
+    name: str = Form(...),
+    location_id: str = Form(None),
+    parent_bin_id: str = Form(None),
     email: str = Depends(get_current_user_email)
 ):
-    # 1. Fetch the bin's current state and current location name
+    # 1. Fetch current state, location name, and parent ID for comparison
     old_bin = await database.fetch_one("""
-        SELECT b.name, b.location_id, b.household_id, l.name as loc_name 
-        FROM bin b 
-        LEFT JOIN locations l ON b.location_id = l.id 
+        SELECT b.name, b.location_id, b.parent_bin_id, b.household_id, l.name as loc_name
+        FROM bin b
+        LEFT JOIN locations l ON b.location_id = l.id
         WHERE b.id = :bid
     """, {"bid": bin_id})
-    
-    if not old_bin: 
+
+    if not old_bin:
         raise HTTPException(status_code=404)
 
     lid = int(location_id) if location_id and location_id != "None" else None
@@ -398,24 +398,34 @@ async def edit_bin(
     query = "UPDATE bin SET name = :n, location_id = :l, parent_bin_id = :p WHERE id = :bid"
     await database.execute(query, {"n": name, "l": lid, "p": pid, "bid": bin_id})
 
-    # 3. Precise Logging
+    # 3. Precise Logging for your audit trail
+    # Check for Location changes (Garage vs Basement)
     if old_bin['location_id'] != lid:
-        # Fetch the new location name
         new_loc = await database.fetch_one("SELECT name FROM locations WHERE id = :lid", {"lid": lid})
         old_loc_name = old_bin['loc_name'] or "Unassigned Area"
         new_loc_name = new_loc['name'] if new_loc else "Unassigned Area"
-        
+
         await log_activity(
-            email, 
-            old_bin['household_id'], 
-            "MOVE", 
+            email, old_bin['household_id'], "MOVE",
             f"Relocated bin '{name}' from '{old_loc_name}' to '{new_loc_name}'"
         )
+    
+    # Check for Nesting changes
+    elif old_bin['parent_bin_id'] != pid:
+        parent_name = "Top Level"
+        if pid:
+            parent = await database.fetch_one("SELECT name FROM bin WHERE id = :pid", {"pid": pid})
+            parent_name = parent['name'] if parent else "Top Level"
+        
+        await log_activity(
+            email, old_bin['household_id'], "UPDATE",
+            f"Hierarchy change: Bin '{name}' is now nested inside '{parent_name}'"
+        )
+
+    # Check for Name changes
     elif old_bin['name'] != name:
         await log_activity(
-            email, 
-            old_bin['household_id'], 
-            "UPDATE", 
+            email, old_bin['household_id'], "UPDATE",
             f"Renamed bin '{old_bin['name']}' to '{name}'"
         )
 
