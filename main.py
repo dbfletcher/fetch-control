@@ -380,34 +380,44 @@ async def edit_bin(
     parent_bin_id: str = Form(None), 
     email: str = Depends(get_current_user_email)
 ):
-    """Updates bin metadata and hierarchy with activity logging."""
-    # 1. Fetch current state for comparison and context
-    old_bin = await database.fetch_one(
-        "SELECT name, location_id, household_id FROM bin WHERE id = :bid", 
-        {"bid": bin_id}
-    )
+    # 1. Fetch the bin's current state and current location name
+    old_bin = await database.fetch_one("""
+        SELECT b.name, b.location_id, b.household_id, l.name as loc_name 
+        FROM bin b 
+        LEFT JOIN locations l ON b.location_id = l.id 
+        WHERE b.id = :bid
+    """, {"bid": bin_id})
+    
     if not old_bin: 
-        raise HTTPException(status_code=404, detail="Bin not found")
+        raise HTTPException(status_code=404)
 
     lid = int(location_id) if location_id and location_id != "None" else None
     pid = int(parent_bin_id) if parent_bin_id and parent_bin_id != "None" else None
 
-    # 2. Update the bin
+    # 2. Update the bin in MariaDB
     query = "UPDATE bin SET name = :n, location_id = :l, parent_bin_id = :p WHERE id = :bid"
     await database.execute(query, {"n": name, "l": lid, "p": pid, "bid": bin_id})
 
-    # 3. Log the activity
-    if old_bin['name'] != name:
-        action_desc = f"Renamed bin '{old_bin['name']}' to '{name}'"
-    elif old_bin['location_id'] != lid:
-        # Fetch location name for a better log entry
-        loc = await database.fetch_one("SELECT name FROM locations WHERE id = :lid", {"lid": lid})
-        loc_name = loc['name'] if loc else "Unknown"
-        action_desc = f"Moved bin '{name}' to location '{loc_name}'"
-    else:
-        action_desc = f"Updated metadata for bin '{name}'"
-
-    await log_activity(email, old_bin['household_id'], "UPDATE", action_desc)
+    # 3. Precise Logging
+    if old_bin['location_id'] != lid:
+        # Fetch the new location name
+        new_loc = await database.fetch_one("SELECT name FROM locations WHERE id = :lid", {"lid": lid})
+        old_loc_name = old_bin['loc_name'] or "Unassigned Area"
+        new_loc_name = new_loc['name'] if new_loc else "Unassigned Area"
+        
+        await log_activity(
+            email, 
+            old_bin['household_id'], 
+            "MOVE", 
+            f"Relocated bin '{name}' from '{old_loc_name}' to '{new_loc_name}'"
+        )
+    elif old_bin['name'] != name:
+        await log_activity(
+            email, 
+            old_bin['household_id'], 
+            "UPDATE", 
+            f"Renamed bin '{old_bin['name']}' to '{name}'"
+        )
 
     return RedirectResponse(url=f"/bins/{old_bin['household_id']}", status_code=303)
 

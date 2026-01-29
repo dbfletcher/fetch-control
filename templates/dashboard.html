@@ -116,15 +116,21 @@
                 </form>
             </div>
         {% endif %}
-        
+
         <div class="top-bar">
             <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
             <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
+            
+            <button onclick="document.querySelectorAll('details').forEach(d => d.open = false)" 
+                    style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 15px; font-weight: bold;">
+                Collapse All Bins
+            </button>
+
             <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-size:0.9em; font-weight:bold;">
                 Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
             </div>
         </div>
-
+        
         {% if current_household_id %}
         <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
             <input type="text" id="globalSearch" placeholder="🔍 Search parts or bins..." onkeyup="filterInventory()" 
