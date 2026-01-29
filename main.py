@@ -286,30 +286,27 @@ async def get_bin_path(bin_id: int):
 
 @app.get("/global-search")
 async def global_search(request: Request, q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
-    # 1. Fetch search results from MariaDB
-    # This query finds matching items and their associated bin/household info
-    query = """
-        SELECT i.*, b.name as bin_name, b.id as bin_id, h.name as household_name, h.id as household_id
-        FROM items i
-        JOIN bin b ON i.bin_id = b.id
-        JOIN households h ON b.household_id = h.id
-        WHERE i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q
-    """
-    # Define 'results' here so it exists for the next step
-    results = await database.fetch_all(query, {"q": f"%{q}%"})
-    
+    # Initialize an empty list so the page starts blank
     final_results = []
-    for item in results:
-        # Convert the database record to a dictionary
-        item_dict = dict(item)
+    
+    # Only perform the search if a query is provided
+    if q.strip():
+        query = """
+            SELECT i.*, b.name as bin_name, b.id as bin_id, h.name as household_name, h.id as household_id
+            FROM items i
+            JOIN bin b ON i.bin_id = b.id
+            JOIN households h ON b.household_id = h.id
+            WHERE i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q
+        """
+        results = await database.fetch_all(query, {"q": f"%{q}%"})
         
-        # 2. Attach the clickable breadcrumb path
-        # We fetch the path for the bin this item lives in
-        item_dict['path'] = await get_bin_path(item_dict['bin_id'])
-        
-        final_results.append(item_dict)
+        for item in results:
+            item_dict = dict(item)
+            # Attach the hierarchy path for breadcrumbs
+            item_dict['path'] = await get_bin_path(item_dict['bin_id'])
+            final_results.append(item_dict)
 
-    # 3. Return the template with the correctly defined results
+    # Return the template (final_results will be empty if no 'q' was provided)
     return templates.TemplateResponse("global_search.html", {
         "request": request,
         "results": final_results,
