@@ -1,11 +1,13 @@
-{# 1. RECURSIVE MACRO: Restored with full photo, edit, and nesting capabilities #}
-{% macro render_bin(bin, level, items, bins, locations, current_household_id) %}
-    {# Scale UI elements based on depth level for your Indiana workshop #}
+{# 1. RECURSIVE MACRO: Now accepts a 'path' argument to build breadcrumbs #}
+{% macro render_bin(bin, level, items, bins, locations, current_household_id, path=[]) %}
+    {# Scale UI elements based on depth level #}
     {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
     {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
     {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
 
-    <div class="bin-card" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }}; margin-bottom: 25px;">
+    {# Added id="bin-{{ bin.id }}" to enable jump-links from breadcrumbs #}
+    <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }}; margin-bottom: 25px; scroll-margin-top: 80px;">
+        
         <div class="bin-photo-container" style="height: {{ header_height }}px; background: #dfe6e9; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
             {% if bin.location_image %}
                 <a href="/highres/{{ bin.location_image }}" target="_blank">
@@ -23,6 +25,16 @@
         </div>
 
         <div style="padding: 20px; border-top: 5px solid var(--primary);">
+            
+            {% if path %}
+            <div style="font-size: 0.72em; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                {% for step in path %}
+                    <a href="#bin-{{ step.id }}" style="color: var(--primary); text-decoration: none; font-weight: bold;">{{ step.name }}</a> 
+                    <span style="margin: 0 4px; opacity: 0.5;">&gt;</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
                     {{ bin.name }}
@@ -60,7 +72,8 @@
                 {% for child in bins if child.parent_bin_id == bin.id %}
                     {% set child_items = items | selectattr("bin_id", "equalto", child.id) | list %}
                     {% if child.name != 'Unassigned' or child_items | length > 0 %}
-                        {{ render_bin(child, level + 1, items, bins, locations, current_household_id) }}
+                        {# Recursive call passing the updated path #}
+                        {{ render_bin(child, level + 1, items, bins, locations, current_household_id, path + [{'id': bin.id, 'name': bin.name}]) }}
                     {% endif %}
                 {% endfor %}
             </div>
@@ -160,14 +173,15 @@
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; background: #f0f2f5; height: 100vh; overflow: hidden; }
         .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; transition: 0.3s; position: fixed; height: 100%; z-index: 1001; }
         .sidebar input, .sidebar select { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); width: 100%; padding: 10px; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
-        .main-content { flex-grow: 1; margin-left: var(--sidebar-width); height: 100vh; overflow-y: auto; width: 100%; }
+        .main-content { flex-grow: 1; margin-left: var(--sidebar-width); height: 100vh; overflow-y: auto; width: 100%; scroll-behavior: smooth; }
         .top-bar { background: white; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid #e1e4e8; position: sticky; top: 0; z-index: 10; gap: 15px; }
-        .bin-list-container { padding: 25px; display: flex; flex-direction: column; }
+        .bin-list-container { padding: 25px; display: flex; flex-direction: column; gap: 25px; }
         .bin-card { background: white; border-radius: 12px; border: 1px solid #e1e4e8; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
         .btn-delete-photo { background: var(--danger); color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; text-align: center; display: block; }
         .clickable { cursor: pointer; transition: 0.2s; }
         .clickable:hover { color: var(--primary); }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
     </style>
 </head>
 <body>
@@ -234,7 +248,8 @@
         <div class="bin-list-container">
             {% for bin in bins if not bin.parent_bin_id %}
                 {% if bin.name != 'Unassigned' %}
-                    {{ render_bin(bin, 0, items, bins, locations, current_household_id) }}
+                    {# Start top-level with an empty path #}
+                    {{ render_bin(bin, 0, items, bins, locations, current_household_id, []) }}
                 {% endif %}
             {% endfor %}
         </div>
@@ -263,13 +278,16 @@
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
                         if (editModal) {
-                            text += " " + editModal.querySelector('textarea').value.toLowerCase();
-                            text += " " + editModal.querySelector('input[type=\"url\"]').value.toLowerCase();
+                            text += " " + (editModal.querySelector('textarea')?.value.toLowerCase() || "");
+                            text += " " + (editModal.querySelector('input[type=\"url\"]')?.value.toLowerCase() || "");
                         }
                     }
                     const isMatch = (input.length > 0 && text.includes(input)) || binMatch;
                     row.style.display = isMatch ? "flex" : "none";
-                    if (isMatch && input.length > 0) { binHasMatch = true; if (itemsDetails) itemsDetails.open = true; }
+                    if (isMatch && input.length > 0) { 
+                        binHasMatch = true; 
+                        if (itemsDetails) itemsDetails.open = true; 
+                    }
                 }
                 if (input.length === 0 && itemsDetails) { itemsDetails.open = false; }
                 card.style.display = (binHasMatch || binMatch || input.length === 0) ? "" : "none";
