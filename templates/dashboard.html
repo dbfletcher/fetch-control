@@ -252,14 +252,26 @@
                             </div>
                         {% endfor %}
                     </details>
-
-                    {% for child in bins if child.parent_bin_id == bin.id %}
-                        <div class="nested-box">
-                            <strong>📂 {{ child.name }}</strong>
-                            {% for item in items if item.bin_id == child.id %}<div style="font-size:0.9em; margin-top:6px; color:#555;">• {{ item.quantity }}x {{ item.name }}</div>{% endfor %}
-                        </div>
-                    {% endfor %}
-
+                    <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                        {% for child in bins if child.parent_bin_id == bin.id %}
+                            <details class="nested-bin-details" style="margin-left: 20px; margin-bottom: 10px; border-left: 2px solid var(--primary); padding-left: 10px;">
+                                <summary style="cursor: pointer; font-weight: bold; color: #444; font-size: 0.9em; outline: none;">
+                                    📂 {{ child.name }}
+                                </summary>
+                                
+                                <div style="margin-top: 8px;">
+                                    {% for item in items if item.bin_id == child.id %}
+                                        <div style="font-size: 0.85em; margin-bottom: 5px; color: #555; display: flex; justify-content: space-between;">
+                                            <span>• {{ item.quantity }}x {{ item.name }}</span>
+                                            <span style="color: var(--accent); font-weight: bold;">${{ "{:.2f}".format(item.price) }}</span>
+                                        </div>
+                                    {% else %}
+                                        <div style="font-size: 0.8em; color: #999; font-style: italic; margin-left: 10px;">(Sub-bin is empty)</div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        {% endfor %}
+                    </div>
                     <details style="margin-top:25px; border-top:1px solid #eee; padding-top:15px;">
                         <summary style="cursor:pointer; color:var(--primary); font-weight:bold; font-size:0.95em;">+ Add New Part</summary>
                         <form action="/add-item/{{ bin.id }}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
@@ -296,44 +308,41 @@
 
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
-            const includeMetadata = document.getElementById('searchMetadata').checked;
             const cards = document.getElementsByClassName('bin-card');
 
             for (let card of cards) {
-                const itemRows = card.getElementsByClassName('item-row');
-                let binHasMatch = false;
+                let cardHasMatch = false;
+                const itemsDetails = card.querySelector('details'); // Top-level details
+                const nestedDetails = card.querySelectorAll('.nested-bin-details'); // All sub-bin details
 
-                // 1. Check Bin Name/Area
-                const binHeader = card.querySelector('h3').innerText.toLowerCase();
-                const areaTag = card.querySelector('span[style*="background:#f0f0f0"]')?.innerText.toLowerCase() || "";
-                const binHeaderMatch = binHeader.includes(input) || areaTag.includes(input);
+                // 1. Loop through ALL item rows in this card (including nested ones)
+                const itemRows = card.getElementsByClassName('item-row'); 
+                // Note: You may need to add class="item-row" to the sub-bin items if they aren't there
                 
-                // Target the items details element for this card
-                const itemsDetails = card.querySelector('details');
+                // Simplified Logic: Check text content
+                const textContent = card.innerText.toLowerCase();
+                const isMatch = input.length > 0 && textContent.includes(input);
 
-                // 2. Loop through each item
-                for (let row of itemRows) {
-                    let itemText = row.innerText.toLowerCase();
-                    const isMatch = (input.length > 0 && itemText.includes(input)) || binHeaderMatch;
+                if (isMatch) {
+                    cardHasMatch = true;
+                    if (itemsDetails) itemsDetails.open = true;
                     
-                    row.style.display = isMatch ? "flex" : "none";
-
-                    if (isMatch && input.length > 0) {
-                        binHasMatch = true;
-                        // AUTO-EXPAND: Open the bin if there's a search match
-                        if (itemsDetails) itemsDetails.open = true;
-                    }
+                    // Expand any sub-bin specifically containing the text
+                    nestedDetails.forEach(d => {
+                        if (d.innerText.toLowerCase().includes(input)) d.open = true;
+                    });
                 }
 
-                // 3. Reset to Collapsed: If search is cleared, collapse per your default preference
-                if (input.length === 0 && itemsDetails) {
-                    itemsDetails.open = false;
+                // Collapse reset if search is cleared
+                if (input.length === 0) {
+                    if (itemsDetails) itemsDetails.open = false;
+                    nestedDetails.forEach(d => d.open = false);
                 }
 
-                // 4. Hide/Show Bin Card
-                card.style.display = (binHasMatch || binHeaderMatch || input.length === 0) ? "" : "none";
+                card.style.display = (isMatch || input.length === 0) ? "" : "none";
             }
         }
+
         function handleFileSelect(input, form) {
             const file = input.files[0]; if (!file) return; currentForm = form;
             const reader = new FileReader();
