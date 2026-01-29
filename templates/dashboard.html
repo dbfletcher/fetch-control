@@ -191,7 +191,7 @@
                         </div>
                     </div>
 
-                    <details {% if bin_items | length > 0 %}open{% endif %} style="margin-top: 10px;">
+                    <details style="margin-top: 10px;">
                         <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px; outline: none;">
                             📦 View {{ bin_items | length }} Items
                         </summary>
@@ -289,22 +289,42 @@
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
             const cards = document.getElementsByClassName('bin-card');
+
             for (let card of cards) {
                 const itemRows = card.getElementsByClassName('item-row');
                 let binHasMatch = false;
+
+                // 1. Check Bin Name/Area
                 const binHeader = card.querySelector('h3').innerText.toLowerCase();
                 const areaTag = card.querySelector('span[style*="background:#f0f0f0"]')?.innerText.toLowerCase() || "";
                 const binHeaderMatch = binHeader.includes(input) || areaTag.includes(input);
+                
+                // Target the items details element for this card
+                const itemsDetails = card.querySelector('details');
+
+                // 2. Loop through each item
                 for (let row of itemRows) {
                     let itemText = row.innerText.toLowerCase();
-                    const isMatch = itemText.includes(input) || binHeaderMatch;
+                    const isMatch = (input.length > 0 && itemText.includes(input)) || binHeaderMatch;
+                    
                     row.style.display = isMatch ? "flex" : "none";
-                    if (isMatch) binHasMatch = true;
+
+                    if (isMatch && input.length > 0) {
+                        binHasMatch = true;
+                        // AUTO-EXPAND: Open the bin if there's a search match
+                        if (itemsDetails) itemsDetails.open = true;
+                    }
                 }
-                card.style.display = (binHasMatch || binHeaderMatch) ? "" : "none";
+
+                // 3. Reset to Collapsed: If search is cleared, collapse per your default preference
+                if (input.length === 0 && itemsDetails) {
+                    itemsDetails.open = false;
+                }
+
+                // 4. Hide/Show Bin Card
+                card.style.display = (binHasMatch || binHeaderMatch || input.length === 0) ? "" : "none";
             }
         }
-
         function handleFileSelect(input, form) {
             const file = input.files[0]; if (!file) return; currentForm = form;
             const reader = new FileReader();
