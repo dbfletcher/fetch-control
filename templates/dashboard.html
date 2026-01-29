@@ -10,52 +10,33 @@
     <style>
         :root { --sidebar-bg: #2c3e50; --primary: #3498db; --accent: #27ae60; --danger: #e74c3c; --sidebar-width: 280px; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; background: #f0f2f5; height: 100vh; overflow: hidden; }
-
-        /* Sidebar Navigation */
         .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; transition: 0.3s; position: fixed; height: 100%; z-index: 1001; }
         .sidebar.collapsed { transform: translateX(-100%); }
         .sidebar input, .sidebar select { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); width: 100%; padding: 10px; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
         .sidebar select option { color: #333; background: white; }
-
-        /* Main Dashboard Content */
         .main-content { flex-grow: 1; margin-left: var(--sidebar-width); transition: 0.3s; height: 100vh; overflow-y: auto; width: 100%; }
         .main-content.expanded { margin-left: 0; }
         .top-bar { background: white; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid #e1e4e8; position: sticky; top: 0; z-index: 10; gap: 15px; }
-        .error-banner { background: var(--danger); color: white; padding: 12px 20px; font-size: 0.9em; text-align: center; }
-
-        /* Bin and Photo Containers */
-        /* Changed from grid to flex column for hierarchical stacking */
         .bin-list-container { display: flex; flex-direction: column; gap: 25px; padding: 25px; }
         .bin-card { background: white; border-radius: 12px; border: 1px solid #e1e4e8; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 20px; }
-
-        .bin-photo-container {
-            width: 100%;
-            /* Height is now set inline by the macro based on level */
-            background: #dfe6e9; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
-        }
+        .bin-photo-container { width: 100%; background: #dfe6e9; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
         .bin-photo-container img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-
         .item-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; }
-        .item-thumb-container { position: relative; flex-shrink: 0; /* Width/Height set inline by macro */ }
+        .item-thumb-container { position: relative; flex-shrink: 0; }
         .item-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; background: #eee; cursor: pointer; }
-
-        /* Buttons & Helpers */
         .btn-delete-photo { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 5; }
         .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; display: block; box-sizing: border-box; text-align: center; line-height: 1.2; font-size: 14px; }
         .clickable { cursor: pointer; transition: 0.2s; }
         .clickable:hover { opacity: 0.7; color: var(--primary); }
         summary { outline: none; }
-
         @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
     </style>
 </head>
 <body>
-    {# This macro renders a bin card recursively. It takes the bin object and current depth level. #}
+    {# The recursive macro requires 'with context' to access global inventory variables #}
     {% macro render_bin(bin, level) %}
-        {# Calculate scaled dimensions based on depth level #}
         {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
         {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
-        
         {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
 
         <div class="bin-card" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }};">
@@ -64,9 +45,7 @@
                     <a href="/highres/{{ bin.location_image }}" target="_blank">
                         <img src="/lowres/{{ bin.location_image }}" title="Click for High-res">
                     </a>
-                    <form action="/delete-location-photo/{{ bin.id }}" method="post"
-                          style="position:absolute; top:8px; right:8px;"
-                          onsubmit="return confirm('Delete bin photo?')">
+                    <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
                         <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
                     </form>
                 {% else %}
@@ -79,9 +58,7 @@
 
             <div style="padding: 15px; border-top: 3px solid var(--primary);">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1em' }};">
-                        {{ bin.name }}
-                    </h3>
+                    <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1em' }};">{{ bin.name }}</h3>
                     {% if bin.location_name %}<span style="font-size:0.75em; background:#f0f0f0; padding:3px 8px; border-radius:4px;">📍 {{ bin.location_name }}</span>{% endif %}
                 </div>
 
@@ -112,24 +89,18 @@
                 </div>
 
                 <details style="margin-top: 10px;">
-                    <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px;">
-                        📦 View {{ bin_items | length }} Items
-                    </summary>
+                    <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px;">📦 View {{ bin_items | length }} Items</summary>
                     {% for item in items if item.bin_id == bin.id %}
                         <div class="item-row">
                             <div class="item-thumb-container" style="width: {{ thumb_size }}px; height: {{ thumb_size }}px;">
                                 {% if item.high_res_image %}
-                                    <a href="/highres/{{ item.high_res_image }}" target="_blank">
-                                        <img src="/lowres/{{ item.high_res_image }}" class="item-thumb">
-                                    </a>
+                                    <a href="/highres/{{ item.high_res_image }}" target="_blank"><img src="/lowres/{{ item.high_res_image }}" class="item-thumb"></a>
                                 {% else %}
                                     <div style="width:100%; height:100%; background:#eee; border-radius:4px;"></div>
                                 {% endif %}
                             </div>
                             <div style="flex-grow:1; margin-left:15px;">
-                                <div style="display:flex; justify-content:space-between;">
-                                    <span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600; font-size: {{ '1em' if level == 0 else '0.9em' }};">{{ item.quantity }}x {{ item.name }}</span>
-                                </div>
+                                <div style="display:flex; justify-content:space-between;"><span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600; font-size: {{ '1em' if level == 0 else '0.9em' }};">{{ item.quantity }}x {{ item.name }}</span></div>
                                 <div style="color:var(--accent); font-weight:bold; font-size:0.9em;">${{ "{:.2f}".format(item.price) }}</div>
                             </div>
                         </div>
@@ -145,10 +116,7 @@
                                 <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
                                     {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
                                 </select>
-                                <div style="display:flex; gap:10px;">
-                                    <button type="submit" class="btn-save">Update</button>
-                                    <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button>
-                                </div>
+                                <div style="display:flex; gap:10px;"><button type="submit" class="btn-save">Update</button><button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button></div>
                             </form>
                         </div>
                     {% endfor %}
@@ -158,10 +126,7 @@
                     <summary style="cursor:pointer; color:var(--primary); font-weight:bold; font-size:0.9em;">+ Add New Part</summary>
                     <form action="/add-item/{{ bin.id }}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
                         <input type="text" name="name" placeholder="Part Name" required style="width:100%; padding:10px; margin-bottom:10px;">
-                        <div style="display:flex; gap:10px; margin-bottom:10px;">
-                            <input type="number" name="quantity" value="1" style="width:30%; padding:10px;">
-                            <input type="number" step="0.01" name="price" placeholder="$0.00" style="width:70%; padding:10px;">
-                        </div>
+                        <div style="display:flex; gap:10px; margin-bottom:10px;"><input type="number" name="quantity" value="1" style="width:30%; padding:10px;"><input type="number" step="0.01" name="price" placeholder="$0.00" style="width:70%; padding:10px;"></div>
                         <button type="submit" class="btn-save" style="margin-top:20px;">Save Part</button>
                     </form>
                 </details>
@@ -175,6 +140,7 @@
             </div>
         </div>
     {% endmacro %}
+
     <div class="sidebar" id="sidebar">
         <div style="padding: 25px; display: flex; justify-content: space-between; align-items: center;"><strong>📦 PROJECT FETCH</strong><button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">×</button></div>
         <div style="padding: 15px; flex-grow: 1; overflow-y: auto;">
@@ -199,11 +165,6 @@
                     <select name="parent_bin_id"><option value="None">-- Top Level --</option>{% for b in bins %}<option value="{{ b.id }}">Inside: {{ b.name }}</option>{% endfor %}</select>
                     <button type="submit" class="btn-save">Create</button>
                 </form>
-                <div style="margin-top:20px;">
-                    <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="background:var(--accent); text-decoration:none;">🖨️ Batch Labels</a>
-                    <a href="/global-search?return_to={{ current_household_id }}" class="btn-save" style="background:#9b59b6; margin-top:10px; text-decoration:none;">🔍 Global Search</a>
-                    {% if email == 'dbfletcher@gmail.com' %}<a href="/admin?return_to={{ current_household_id }}" class="btn-save" style="background:#444; margin-top:10px; text-decoration:none;">⚙️ Admin Panel</a>{% endif %}
-                </div>
             </div>
             {% endif %}
         </div>
@@ -223,10 +184,7 @@
         {% endif %}
 
         <div class="bin-list-container">
-            {# Import the macro so we can use it #}
-            {% from _self_ import render_bin %}
-            
-            {# Loop through TOP LEVEL bins only and call the macro #}
+            {% from _self_ import render_bin with context %}
             {% for bin in bins if not bin.parent_bin_id %}
                 {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
                 {% if bin.name != 'Unassigned' or bin_items | length > 0 %}
@@ -240,9 +198,11 @@
         <div style="width:90%; max-height:70vh; margin-bottom:20px;"><img id="imageToCrop" style="max-width:100%; display:block;"></div>
         <div style="display:flex; gap:20px;"><button onclick="cancelCrop()" style="padding:15px 30px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold;">Cancel</button><button onclick="executeCrop(event)" style="padding:15px 30px; background:#27ae60; color:white; border:none; border-radius:8px; font-weight:bold;">Save & Upload</button></div>
     </div>
+
     <script>
         let cropper; let currentForm;
         function toggleSidebar() { const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent'); if (window.innerWidth <= 768) { s.classList.toggle('active'); } else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); } }
+        
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const cards = document.getElementsByClassName('bin-card');
@@ -250,18 +210,23 @@
                 const itemRows = card.getElementsByClassName('item-row');
                 let binHasMatch = false;
                 const binHeader = card.querySelector('h3').innerText.toLowerCase();
+                const binHeaderMatch = binHeader.includes(input);
                 const itemsDetails = card.querySelector('details');
+                
                 for (let row of itemRows) {
                     let itemText = row.innerText.toLowerCase();
                     const isMatch = (input.length > 0 && itemText.includes(input)) || binHeaderMatch;
                     row.style.display = isMatch ? "flex" : "none";
-                    if (isMatch && input.length > 0) { binHasMatch = true; if (itemsDetails) itemsDetails.open = true; }
+                    if (isMatch && input.length > 0) { 
+                        binHasMatch = true; 
+                        if (itemsDetails) itemsDetails.open = true; 
+                    }
                 }
                 if (input.length === 0 && itemsDetails) { itemsDetails.open = false; }
                 card.style.display = (binHasMatch || binHeaderMatch || input.length === 0) ? "" : "none";
             }
         }
-        // ... (Remaining image cropping scripts from previous version) ...
+
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { const img = document.getElementById('imageToCrop'); img.src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(img, { aspectRatio: NaN, viewMode: 1, dragMode: 'move' }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const eventObj = e || window.event; const saveBtn = eventObj ? eventObj.target : null; if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; } const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'cropped_item.jpg'); } else { formData.set('file', blob, 'cropped_bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
