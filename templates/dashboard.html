@@ -1,3 +1,136 @@
+{# 1. Define the recursive macro at the absolute top #}
+{% macro render_bin(bin, level, items, bins, locations, current_household_id) %}
+    {# Scale UI elements based on depth level #}
+    {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
+    {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
+    {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
+
+    <div class="bin-card" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }}; margin-bottom: 25px;">
+        <div class="bin-photo-container" style="height: {{ header_height }}px; background: #dfe6e9; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            {% if bin.location_image %}
+                <a href="/highres/{{ bin.location_image }}" target="_blank">
+                    <img src="/lowres/{{ bin.location_image }}" title="Click for High-res" style="width: 100%; height: 100%; object-fit: cover;">
+                </a>
+                <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
+                    <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
+                </form>
+            {% else %}
+                <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data" style="padding:{{ header_height/4 }}px; text-align:center;">
+                    <input type="file" name="file" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="up-{{ bin.id }}" style="display:none;">
+                    <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold; font-size: {{ '1em' if level == 0 else '0.8em' }};">+ Add Photo</label>
+                </form>
+            {% endif %}
+        </div>
+
+        <div style="padding: 15px; border-top: 3px solid var(--primary);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1em' }};">
+                    {{ bin.name }}
+                </h3>
+                {% if bin.location_name %}<span style="font-size:0.75em; background:#f0f0f0; padding:3px 8px; border-radius:4px;">📍 {{ bin.location_name }}</span>{% endif %}
+            </div>
+
+            <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
+                <form action="/edit-bin/{{ bin.id }}" method="post">
+                    <label style="font-size: 0.8em; font-weight: bold; color: #666;">Bin Name</label>
+                    <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    
+                    <label style="font-size: 0.8em; font-weight: bold; color: #666;">Location</label>
+                    <select name="location_id" style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                        <option value="None">-- No Area --</option>
+                        {% for loc in locations %}<option value="{{ loc.id }}" {% if bin.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
+                    </select>
+
+                    <label style="font-size: 0.8em; font-weight: bold; color: #666;">Nest Inside Bin (Optional)</label>
+                    <select name="parent_bin_id" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                        <option value="None">-- Top Level --</option>
+                        {% for b in bins %}{% if b.id != bin.id %}<option value="{{ b.id }}" {% if bin.parent_bin_id == b.id %}selected{% endif %}>Inside: {{ b.name }}</option>{% endif %}{% endfor %}
+                    </select>
+
+                    <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                        <button type="submit" class="btn-save">Update</button>
+                        <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer;">Cancel</button>
+                    </div>
+                </form>
+                <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                    <form action="/delete-bin/{{ bin.id }}" method="post" onsubmit="return confirm('Retire bin? Contents will move to Unassigned.')">
+                        <button type="submit" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer; font-weight:bold;">🗑️ Retire Bin</button>
+                    </form>
+                </div>
+            </div>
+
+            <details class="items-details" style="margin-top: 10px;">
+                <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px;">📦 View {{ bin_items | length }} Items</summary>
+                {% for item in bin_items %}
+                    <div class="item-row" style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+                        <div class="item-thumb-container" style="width: {{ thumb_size }}px; height: {{ thumb_size }}px;">
+                            {% if item.high_res_image %}
+                                <a href="/highres/{{ item.high_res_image }}" target="_blank">
+                                    <img src="/lowres/{{ item.high_res_image }}" class="item-thumb" style="width:100%; height:100%;">
+                                </a>
+                                <form action="/delete-item-photo/{{ item.id }}" method="post" onsubmit="return confirm('Delete part photo?')">
+                                    <button type="submit" class="btn-delete-photo">×</button>
+                                </form>
+                            {% else %}
+                                <form action="/upload-item-photo/{{ item.id }}" method="post" enctype="multipart/form-data" style="width:100%; height:100%;">
+                                    <input type="file" name="image" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="item-up-{{ item.id }}" style="display:none;">
+                                    <label for="item-up-{{ item.id }}" style="cursor:pointer; display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:#eee; border-radius:4px; color:var(--primary); font-size:16px;">+</label>
+                                </form>
+                            {% endif %}
+                        </div>
+                        <div style="flex-grow:1; margin-left:15px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600; font-size: {{ '1em' if level == 0 else '0.9em' }};">{{ item.quantity }}x {{ item.name }}</span>
+                                <form action="/delete-item/{{ item.id }}" method="post" onsubmit="return confirm('Delete part?')">
+                                    <button type="submit" style="background:none; border:none; cursor:pointer; opacity:0.3;">🗑️</button>
+                                </form>
+                            </div>
+                            <div style="color:var(--accent); font-weight:bold; font-size:0.85em;">${{ "{:.2f}".format(item.price) }}</div>
+                        </div>
+                    </div>
+                    <div id="ep-{{ item.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd; clear:both;">
+                        <form action="/edit-item/{{ item.id }}" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="household_id" value="{{ current_household_id }}">
+                            <input type="text" name="name" value="{{ item.name }}" required style="width:100%; margin-bottom:10px; padding:8px;">
+                            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                                <input type="number" name="quantity" value="{{ item.quantity }}" style="width:30%; padding:8px;">
+                                <input type="number" step="0.01" name="price" value="{{ item.price }}" style="width:70%; padding:8px;">
+                            </div>
+                            <label style="display:block; margin-bottom:5px; font-weight:bold;">Move to Bin:</label>
+                            <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
+                                {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+                            </select>
+                            <div style="display:flex; gap:10px;">
+                                <button type="submit" class="btn-save">Update</button>
+                                <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                {% endfor %}
+            </details>
+
+            <details style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+                <summary style="cursor:pointer; color:var(--primary); font-weight:bold; font-size:0.9em;">+ Add New Part</summary>
+                <form action="/add-item/{{ bin.id }}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
+                    <input type="text" name="name" placeholder="Part Name" required style="width:100%; padding:10px; margin-bottom:10px;">
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <input type="number" name="quantity" value="1" style="width:30%; padding:10px;">
+                        <input type="number" step="0.01" name="price" placeholder="$0.00" style="width:70%; padding:10px;">
+                    </div>
+                    <button type="submit" class="btn-save" style="margin-top:20px;">Save Part</button>
+                </form>
+            </details>
+
+            {% for child in bins if child.parent_bin_id == bin.id %}
+                {% set child_items = items | selectattr("bin_id", "equalto", child.id) | list %}
+                {% if child.name != 'Unassigned' or child_items | length > 0 %}
+                    {{ render_bin(child, level + 1, items, bins, locations, current_household_id) }}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,134 +146,19 @@
         .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; transition: 0.3s; position: fixed; height: 100%; z-index: 1001; }
         .sidebar.collapsed { transform: translateX(-100%); }
         .sidebar input, .sidebar select { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); width: 100%; padding: 10px; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
-        .sidebar select option { color: #333; background: white; }
         .main-content { flex-grow: 1; margin-left: var(--sidebar-width); transition: 0.3s; height: 100vh; overflow-y: auto; width: 100%; }
         .main-content.expanded { margin-left: 0; }
         .top-bar { background: white; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid #e1e4e8; position: sticky; top: 0; z-index: 10; gap: 15px; }
         .bin-list-container { display: flex; flex-direction: column; gap: 25px; padding: 25px; }
         .bin-card { background: white; border-radius: 12px; border: 1px solid #e1e4e8; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 20px; }
-        .bin-photo-container { width: 100%; background: #dfe6e9; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
-        .bin-photo-container img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .item-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; }
-        .item-thumb-container { position: relative; flex-shrink: 0; }
-        .item-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; background: #eee; cursor: pointer; }
-        .btn-delete-photo { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 5; }
-        .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; display: block; box-sizing: border-box; text-align: center; line-height: 1.2; font-size: 14px; }
+        .btn-delete-photo { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
+        .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; text-align: center; display: block; }
         .clickable { cursor: pointer; transition: 0.2s; }
-        .clickable:hover { opacity: 0.7; color: var(--primary); }
-        summary { outline: none; }
+        .clickable:hover { color: var(--primary); }
         @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
     </style>
 </head>
 <body>
-    {# The recursive macro requires 'with context' to access global inventory variables #}
-    {% macro render_bin(bin, level) %}
-        {% set header_height = 180 - (level * 30) if level < 4 else 80 %}
-        {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
-        {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
-
-        <div class="bin-card" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }};">
-            <div class="bin-photo-container" style="height: {{ header_height }}px;">
-                {% if bin.location_image %}
-                    <a href="/highres/{{ bin.location_image }}" target="_blank">
-                        <img src="/lowres/{{ bin.location_image }}" title="Click for High-res">
-                    </a>
-                    <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
-                        <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
-                    </form>
-                {% else %}
-                    <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data" style="padding:{{ header_height/4 }}px; text-align:center;">
-                        <input type="file" name="file" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="up-{{ bin.id }}" style="display:none;">
-                        <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold; font-size: {{ '1em' if level == 0 else '0.8em' }};">+ Add Photo</label>
-                    </form>
-                {% endif %}
-            </div>
-
-            <div style="padding: 15px; border-top: 3px solid var(--primary);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1em' }};">{{ bin.name }}</h3>
-                    {% if bin.location_name %}<span style="font-size:0.75em; background:#f0f0f0; padding:3px 8px; border-radius:4px;">📍 {{ bin.location_name }}</span>{% endif %}
-                </div>
-
-                <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
-                    <form action="/edit-bin/{{ bin.id }}" method="post">
-                        <label style="font-size: 0.8em; font-weight: bold; color: #666;">Bin Name</label>
-                        <input type="text" name="name" value="{{ bin.name }}" required style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                        <label style="font-size: 0.8em; font-weight: bold; color: #666;">Location</label>
-                        <select name="location_id" style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                            <option value="None">-- No Area --</option>
-                            {% for loc in locations %}<option value="{{ loc.id }}" {% if bin.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>{% endfor %}
-                        </select>
-                        <label style="font-size: 0.8em; font-weight: bold; color: #666;">Nest Inside Bin (Optional)</label>
-                        <select name="parent_bin_id" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                            <option value="None">-- Top Level --</option>
-                            {% for b in bins %}{% if b.id != bin.id %}<option value="{{ b.id }}" {% if bin.parent_bin_id == b.id %}selected{% endif %}>Inside: {{ b.name }}</option>{% endif %}{% endfor %}
-                        </select>
-                        <div style="display:flex; gap:10px; margin-bottom: 15px;">
-                            <button type="submit" class="btn-save">Update</button>
-                            <button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer;">Cancel</button>
-                        </div>
-                    </form>
-                    <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                        <form action="/delete-bin/{{ bin.id }}" method="post" onsubmit="return confirm('Retire bin?')">
-                            <button type="submit" style="background:var(--danger); color:white; border:none; border-radius:4px; padding:10px; width:100%; cursor:pointer; font-weight:bold;">🗑️ Retire Bin</button>
-                        </form>
-                    </div>
-                </div>
-
-                <details style="margin-top: 10px;">
-                    <summary style="cursor: pointer; color: var(--primary); font-weight: bold; font-size: 0.9em; margin-bottom: 10px;">📦 View {{ bin_items | length }} Items</summary>
-                    {% for item in items if item.bin_id == bin.id %}
-                        <div class="item-row">
-                            <div class="item-thumb-container" style="width: {{ thumb_size }}px; height: {{ thumb_size }}px;">
-                                {% if item.high_res_image %}
-                                    <a href="/highres/{{ item.high_res_image }}" target="_blank"><img src="/lowres/{{ item.high_res_image }}" class="item-thumb"></a>
-                                {% else %}
-                                    <div style="width:100%; height:100%; background:#eee; border-radius:4px;"></div>
-                                {% endif %}
-                            </div>
-                            <div style="flex-grow:1; margin-left:15px;">
-                                <div style="display:flex; justify-content:space-between;"><span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600; font-size: {{ '1em' if level == 0 else '0.9em' }};">{{ item.quantity }}x {{ item.name }}</span></div>
-                                <div style="color:var(--accent); font-weight:bold; font-size:0.9em;">${{ "{:.2f}".format(item.price) }}</div>
-                            </div>
-                        </div>
-                        <div id="ep-{{ item.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd; clear:both;">
-                            <form action="/edit-item/{{ item.id }}" method="post" enctype="multipart/form-data">
-                                <input type="hidden" name="household_id" value="{{ current_household_id }}">
-                                <input type="text" name="name" value="{{ item.name }}" required style="width:100%; margin-bottom:10px; padding:8px;">
-                                <div style="display:flex; gap:10px; margin-bottom:10px;">
-                                    <input type="number" name="quantity" value="{{ item.quantity }}" style="width:30%; padding:8px;">
-                                    <input type="number" step="0.01" name="price" value="{{ item.price }}" style="width:70%; padding:8px;">
-                                </div>
-                                <label style="display:block; margin-bottom:5px; font-weight:bold;">Move to Bin:</label>
-                                <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
-                                    {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
-                                </select>
-                                <div style="display:flex; gap:10px;"><button type="submit" class="btn-save">Update</button><button type="button" onclick="this.parentElement.parentElement.parentElement.style.display='none'" style="background:#ccc; border:none; border-radius:4px; padding:10px; width:100%;">Cancel</button></div>
-                            </form>
-                        </div>
-                    {% endfor %}
-                </details>
-
-                <details style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
-                    <summary style="cursor:pointer; color:var(--primary); font-weight:bold; font-size:0.9em;">+ Add New Part</summary>
-                    <form action="/add-item/{{ bin.id }}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
-                        <input type="text" name="name" placeholder="Part Name" required style="width:100%; padding:10px; margin-bottom:10px;">
-                        <div style="display:flex; gap:10px; margin-bottom:10px;"><input type="number" name="quantity" value="1" style="width:30%; padding:10px;"><input type="number" step="0.01" name="price" placeholder="$0.00" style="width:70%; padding:10px;"></div>
-                        <button type="submit" class="btn-save" style="margin-top:20px;">Save Part</button>
-                    </form>
-                </details>
-
-                {% for child in bins if child.parent_bin_id == bin.id %}
-                    {% set child_items = items | selectattr("bin_id", "equalto", child.id) | list %}
-                    {% if child.name != 'Unassigned' or child_items | length > 0 %}
-                        {{ render_bin(child, level + 1) }}
-                    {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-    {% endmacro %}
-
     <div class="sidebar" id="sidebar">
         <div style="padding: 25px; display: flex; justify-content: space-between; align-items: center;"><strong>📦 PROJECT FETCH</strong><button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">×</button></div>
         <div style="padding: 15px; flex-grow: 1; overflow-y: auto;">
@@ -148,6 +166,7 @@
             {% for hh in available_households %}
                 <a href="/bins/{{ hh.id }}" style="text-decoration:none; color:white; display:block; padding:12px; border-radius:8px; margin-bottom:8px; {% if hh.id == current_household_id %}background:var(--primary);{% endif %}">{{ hh.name }}</a>
             {% endfor %}
+
             {% if current_household_id %}
             <div style="margin-top: 35px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
                 <p style="font-size: 0.7em; opacity: 0.5;">Physical Areas</p>
@@ -158,6 +177,7 @@
                     </div>
                 {% endfor %}
                 <form action="/add-location/{{ current_household_id }}" method="post" style="margin-bottom:20px;"><input type="text" name="name" placeholder="+ Add Area" required></form>
+                
                 <p style="font-size: 0.7em; opacity: 0.5;">New Bin</p>
                 <form action="/add-bin/{{ current_household_id }}" method="post">
                     <input type="text" name="name" placeholder="Name" required>
@@ -165,6 +185,12 @@
                     <select name="parent_bin_id"><option value="None">-- Top Level --</option>{% for b in bins %}<option value="{{ b.id }}">Inside: {{ b.name }}</option>{% endfor %}</select>
                     <button type="submit" class="btn-save">Create</button>
                 </form>
+
+                <div style="margin-top:20px;">
+                    <a href="/print-labels/{{ current_household_id }}" class="btn-save" style="background:var(--accent); text-decoration:none;">🖨️ Batch Labels</a>
+                    <a href="/global-search?return_to={{ current_household_id }}" class="btn-save" style="background:#9b59b6; margin-top:10px; text-decoration:none;">🔍 Global Search</a>
+                    {% if email == 'dbfletcher@gmail.com' %}<a href="/admin?return_to={{ current_household_id }}" class="btn-save" style="background:#444; margin-top:10px; text-decoration:none;">⚙️ Admin Panel</a>{% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
@@ -175,8 +201,9 @@
             <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
             <h2 style="margin: 0;">{{ household_name or "Inventory" }}</h2>
             <button onclick="document.querySelectorAll('details').forEach(d => d.open = false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 15px; font-weight: bold;">Collapse All</button>
-            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-size:0.9em; font-weight:bold;">Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}</div>
+            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold;">Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}</div>
         </div>
+
         {% if current_household_id %}
         <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
             <input type="text" id="globalSearch" placeholder="🔍 Search parts..." onkeyup="filterInventory()" style="width: 100%; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; outline: none;">
@@ -184,11 +211,10 @@
         {% endif %}
 
         <div class="bin-list-container">
-            {% from _self_ import render_bin with context %}
+            {# Macro is defined at top; call recursively for top-level bins #}
             {% for bin in bins if not bin.parent_bin_id %}
-                {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
-                {% if bin.name != 'Unassigned' or bin_items | length > 0 %}
-                    {{ render_bin(bin, 0) }}
+                {% if bin.name != 'Unassigned' %}
+                    {{ render_bin(bin, 0, items, bins, locations, current_household_id) }}
                 {% endif %}
             {% endfor %}
         </div>
@@ -208,11 +234,10 @@
             const cards = document.getElementsByClassName('bin-card');
             for (let card of cards) {
                 const itemRows = card.getElementsByClassName('item-row');
+                const itemsDetails = card.querySelector('.items-details');
                 let binHasMatch = false;
-                const binHeader = card.querySelector('h3').innerText.toLowerCase();
-                const binHeaderMatch = binHeader.includes(input);
-                const itemsDetails = card.querySelector('details');
-                
+                const binHeaderMatch = card.querySelector('h3').innerText.toLowerCase().includes(input);
+
                 for (let row of itemRows) {
                     let itemText = row.innerText.toLowerCase();
                     const isMatch = (input.length > 0 && itemText.includes(input)) || binHeaderMatch;
