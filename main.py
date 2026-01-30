@@ -96,18 +96,21 @@ async def health_check():
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(
-    request: Request, 
-    return_to: int = None, 
+    request: Request,
+    return_to: int = None,
     email: str = Depends(get_current_user_email)
 ):
     if email != "dbfletcher@gmail.com":
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     try:
+        # 1. READ the version from the systemd environment variable
+        version = os.getenv("FETCH_VERSION", "Unknown")
+
         users = await database.fetch_all("SELECT id, email FROM users")
         households = await database.fetch_all("SELECT id, name FROM households")
 
-        # 1. Fetch memberships (Access Map)
+        # Fetch memberships (Access Map)
         memberships = await database.fetch_all("""
             SELECT m.id as membership_id, u.email, h.name as household_name, m.created_at
             FROM memberships m
@@ -116,9 +119,9 @@ async def admin_dashboard(
             ORDER BY m.created_at DESC
         """)
 
-        # 2. Fetch the 20 most recent actions for the Activity Feed
+        # Fetch the 20 most recent actions for the Activity Feed
         recent_activity = await database.fetch_all("""
-            SELECT a.*, u.email, h.name as household_name 
+            SELECT a.*, u.email, h.name as household_name
             FROM activity_log a
             JOIN users u ON a.user_id = u.id
             JOIN households h ON a.household_id = h.id
@@ -127,11 +130,12 @@ async def admin_dashboard(
 
         return templates.TemplateResponse("admin.html", {
             "request": request,
+            "version": version,  # 2. PASS it to the admin template
             "email": email,
             "users": users,
             "households": households,
             "memberships": memberships,
-            "activity": recent_activity, # THIS matches the loop in admin.html
+            "activity": recent_activity,
             "return_id": return_to
         })
     except Exception as e:
@@ -202,21 +206,26 @@ async def welcome(request: Request, email: str = Depends(get_current_user_email)
 @app.get("/bins/view/{bin_id}", response_class=HTMLResponse)
 async def view_bin_qr(request: Request, bin_id: int):
     """Publicly accessible read-only view for QR scans."""
+    
+    # 1. READ: Pull the branch name from the Systemd environment
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     # Fetch the bin name and area
     bin_data = await database.fetch_one("""
-        SELECT b.*, l.name as location_name 
-        FROM bin b LEFT JOIN locations l ON b.location_id = l.id 
+        SELECT b.*, l.name as location_name
+        FROM bin b LEFT JOIN locations l ON b.location_id = l.id
         WHERE b.id = :bid
     """, {"bid": bin_id})
-    
+
     if not bin_data:
         raise HTTPException(status_code=404, detail="Bin not found")
-    
+
     # Fetch parts inside this bin
     items = await database.fetch_all("SELECT * FROM items WHERE bin_id = :bid", {"bid": bin_id})
-    
+
     return templates.TemplateResponse("bin_view.html", {
         "request": request,
+        "version": version,  # 2. PASS: Inject version for the footer
         "bin": bin_data,
         "items": items
     })
@@ -225,35 +234,39 @@ async def view_bin_qr(request: Request, bin_id: int):
 async def get_bins(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
     current_hh = next((h for h in households if h["id"] == household_id), None)
-    
+
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
     # Fetch physical areas for this household
     locations = await database.fetch_all("SELECT * FROM locations WHERE household_id = :hid", {"hid": household_id})
-    
+
     # Fetch bins with their area names via LEFT JOIN
     bin_query = """
-        SELECT b.*, l.name as location_name 
-        FROM bin b 
-        LEFT JOIN locations l ON b.location_id = l.id 
+        SELECT b.*, l.name as location_name
+        FROM bin b
+        LEFT JOIN locations l ON b.location_id = l.id
         WHERE b.household_id = :hid
     """
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
-    
+
     # Fetch all items belonging to these bins
     items = await database.fetch_all("""
-        SELECT i.* FROM items i 
-        JOIN bin b ON i.bin_id = b.id 
+        SELECT i.* FROM items i
+        JOIN bin b ON i.bin_id = b.id
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
     # Total inventory value calculation
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
 
+    # READ: Pull the branch name from the Systemd environment variable
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     return templates.TemplateResponse("dashboard.html", {
-        "request": request, 
-        "bins": bins, 
+        "request": request,
+        "version": version,  # PASS: Send the branch name to the HTML template
+        "bins": bins,
         "items": items,
         "locations": locations,
         "email": email,
@@ -288,7 +301,10 @@ async def get_bin_path(bin_id: int):
 async def global_search(request: Request, q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
     # Initialize an empty list so the page starts blank
     final_results = []
-    
+
+    # 1. READ: Pull the branch name from the Systemd environment
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     # Only perform the search if a query is provided
     if q.strip():
         query = """
@@ -299,7 +315,7 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
             WHERE i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q
         """
         results = await database.fetch_all(query, {"q": f"%{q}%"})
-        
+
         for item in results:
             item_dict = dict(item)
             # Attach the hierarchy path for breadcrumbs
@@ -309,6 +325,7 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
     # Return the template (final_results will be empty if no 'q' was provided)
     return templates.TemplateResponse("global_search.html", {
         "request": request,
+        "version": version,  # 2. PASS: Inject the version into the footer
         "results": final_results,
         "query": q,
         "return_to": return_to,
@@ -319,15 +336,20 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
 async def print_labels_page(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
     current_hh = next((h for h in households if h["id"] == household_id), None)
-    
+
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
+    # 1. READ: Pull the branch name from the Systemd environment
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     # Fetch all bins to allow selection
     bins = await database.fetch_all("SELECT * FROM bin WHERE household_id = :hid", {"hid": household_id})
-    
+
+    # Return the template with the version variable included
     return templates.TemplateResponse("print_labels.html", {
         "request": request,
+        "version": version,  # 2. PASS: Inject version for the footer
         "bins": bins,
         "household_name": current_hh["name"],
         "household_id": household_id

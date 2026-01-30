@@ -1,2 +1,5 @@
 ---
+# Default to main for safety
+fetch_app_version: "main"
+
 fetch_container_ip: 192.168.50.60

@@ -3,6 +3,27 @@
   hosts: fetch_app
   remote_user: root
   tasks:
+    # 1. Capture the current branch name on the control node
+    - name: Get current git branch name
+      delegate_to: localhost
+      ansible.builtin.command: git rev-parse --abbrev-ref HEAD
+      register: current_git_branch
+      changed_when: false
+
+    # 2. Switch the control node to the target branch
+    - name: Ensure control node is on the correct branch
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        # Get current branch name
+        current_branch=$(git rev-parse --abbrev-ref HEAD)
+        # Only checkout if the requested version is different
+        if [ "$current_branch" != "{{ fetch_app_version }}" ]; then
+          git checkout {{ fetch_app_version }}
+        fi
+      args:
+        chdir: ~/fetch-control
+      changed_when: false
+
     - name: Ensure app and media directories exist
       ansible.builtin.file:
         path: "{{ item }}"
@@ -28,10 +49,10 @@
       failed_when: uv_path.rc != 0
 
     - name: Run Goose Migrations
-      delegate_to: localhost  # Runs from your control container where goose is installed
+      delegate_to: localhost
       ansible.builtin.shell:
         cmd: goose -dir migrations mysql "root:password@tcp(192.168.50.60:3306)/fetch_db" up
-        chdir: ~/fetch-control  # Path to your migrations folder
+        chdir: ~/fetch-control
 
     - name: Sync FastAPI Application Files
       ansible.builtin.copy:
@@ -77,10 +98,10 @@
           server {
               listen 80;
               server_name _;
-              client_max_body_size 20M; # Increase upload limit for high-res photos
+              client_max_body_size 20M;
 
               location / {
-                  proxy_pass http://127.0.0.1:8000; # Send traffic to the FastAPI app
+                  proxy_pass http://127.0.0.1:8000;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -88,11 +109,10 @@
               }
 
               location /media/ {
-                  alias /var/www/fetch/media/; # Still serve static media directly
+                  alias /var/www/fetch/media/;
                   autoindex on;
               }
           }
-
       register: nginx_config
 
     - name: Disable default Nginx site
@@ -113,6 +133,7 @@
         state: restarted
       when: nginx_config.changed
 
+    # 3. Deploy Systemd Units with the captured version variable
     - name: Deploy Systemd Units from templates
       ansible.builtin.template:
         src: "{{ item }}.j2"
@@ -120,6 +141,8 @@
         mode: '0644'
       loop:
         - fetch.service
+      vars:
+        app_version_label: "{{ current_git_branch.stdout }}"
       notify: Reload Systemd
 
     - name: Ensure Services are Running and Enabled
@@ -135,7 +158,7 @@
       delegate_to: localhost
       ansible.builtin.shell: |
         git add .
-        git commit -m "Automated Deploy: Finalized paths and uv binary discovery" || exit 0
+        git commit -m "Automated Deploy: Branch versioning implementation" || exit 0
       ignore_errors: yes
 
   handlers:
