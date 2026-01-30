@@ -3,6 +3,12 @@
   hosts: fetch_app
   remote_user: root
   tasks:
+    # 1. NEW: Switch the control node to the target branch
+    - name: Ensure control node is on the correct branch
+      delegate_to: localhost
+      ansible.builtin.command:
+        cmd: "git checkout {{ fetch_app_version }}"
+      changed_when: false
     - name: Ensure app and media directories exist
       ansible.builtin.file:
         path: "{{ item }}"
