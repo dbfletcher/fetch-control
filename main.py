@@ -96,18 +96,21 @@ async def health_check():
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(
-    request: Request, 
-    return_to: int = None, 
+    request: Request,
+    return_to: int = None,
     email: str = Depends(get_current_user_email)
 ):
     if email != "dbfletcher@gmail.com":
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     try:
+        # 1. READ the version from the systemd environment variable
+        version = os.getenv("FETCH_VERSION", "Unknown")
+
         users = await database.fetch_all("SELECT id, email FROM users")
         households = await database.fetch_all("SELECT id, name FROM households")
 
-        # 1. Fetch memberships (Access Map)
+        # Fetch memberships (Access Map)
         memberships = await database.fetch_all("""
             SELECT m.id as membership_id, u.email, h.name as household_name, m.created_at
             FROM memberships m
@@ -116,9 +119,9 @@ async def admin_dashboard(
             ORDER BY m.created_at DESC
         """)
 
-        # 2. Fetch the 20 most recent actions for the Activity Feed
+        # Fetch the 20 most recent actions for the Activity Feed
         recent_activity = await database.fetch_all("""
-            SELECT a.*, u.email, h.name as household_name 
+            SELECT a.*, u.email, h.name as household_name
             FROM activity_log a
             JOIN users u ON a.user_id = u.id
             JOIN households h ON a.household_id = h.id
@@ -127,11 +130,12 @@ async def admin_dashboard(
 
         return templates.TemplateResponse("admin.html", {
             "request": request,
+            "version": version,  # 2. PASS it to the admin template
             "email": email,
             "users": users,
             "households": households,
             "memberships": memberships,
-            "activity": recent_activity, # THIS matches the loop in admin.html
+            "activity": recent_activity,
             "return_id": return_to
         })
     except Exception as e:
