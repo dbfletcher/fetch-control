@@ -225,35 +225,39 @@ async def view_bin_qr(request: Request, bin_id: int):
 async def get_bins(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
     current_hh = next((h for h in households if h["id"] == household_id), None)
-    
+
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
     # Fetch physical areas for this household
     locations = await database.fetch_all("SELECT * FROM locations WHERE household_id = :hid", {"hid": household_id})
-    
+
     # Fetch bins with their area names via LEFT JOIN
     bin_query = """
-        SELECT b.*, l.name as location_name 
-        FROM bin b 
-        LEFT JOIN locations l ON b.location_id = l.id 
+        SELECT b.*, l.name as location_name
+        FROM bin b
+        LEFT JOIN locations l ON b.location_id = l.id
         WHERE b.household_id = :hid
     """
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
-    
+
     # Fetch all items belonging to these bins
     items = await database.fetch_all("""
-        SELECT i.* FROM items i 
-        JOIN bin b ON i.bin_id = b.id 
+        SELECT i.* FROM items i
+        JOIN bin b ON i.bin_id = b.id
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
     # Total inventory value calculation
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
 
+    # READ: Pull the branch name from the Systemd environment variable
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     return templates.TemplateResponse("dashboard.html", {
-        "request": request, 
-        "bins": bins, 
+        "request": request,
+        "version": version,  # PASS: Send the branch name to the HTML template
+        "bins": bins,
         "items": items,
         "locations": locations,
         "email": email,

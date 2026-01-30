@@ -4,8 +4,12 @@ After=network.target
 
 [Service]
 User=root
+Group=root
 WorkingDirectory=/root/fetch-app
-ExecStart=/root/.local/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# This line passes the branch name into the app
+Environment="FETCH_VERSION={{ app_version_label }}"
+# Ensure the path to uv matches your environment
+ExecStart=/root/.local/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 
 [Install]
