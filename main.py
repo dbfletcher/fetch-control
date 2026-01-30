@@ -296,7 +296,10 @@ async def get_bin_path(bin_id: int):
 async def global_search(request: Request, q: str = "", return_to: int = None, email: str = Depends(get_current_user_email)):
     # Initialize an empty list so the page starts blank
     final_results = []
-    
+
+    # 1. READ: Pull the branch name from the Systemd environment
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     # Only perform the search if a query is provided
     if q.strip():
         query = """
@@ -307,7 +310,7 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
             WHERE i.name LIKE :q OR i.description LIKE :q OR b.name LIKE :q
         """
         results = await database.fetch_all(query, {"q": f"%{q}%"})
-        
+
         for item in results:
             item_dict = dict(item)
             # Attach the hierarchy path for breadcrumbs
@@ -317,6 +320,7 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
     # Return the template (final_results will be empty if no 'q' was provided)
     return templates.TemplateResponse("global_search.html", {
         "request": request,
+        "version": version,  # 2. PASS: Inject the version into the footer
         "results": final_results,
         "query": q,
         "return_to": return_to,
@@ -327,15 +331,20 @@ async def global_search(request: Request, q: str = "", return_to: int = None, em
 async def print_labels_page(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
     households = await get_user_households(email)
     current_hh = next((h for h in households if h["id"] == household_id), None)
-    
+
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
+    # 1. READ: Pull the branch name from the Systemd environment
+    version = os.getenv("FETCH_VERSION", "Unknown")
+
     # Fetch all bins to allow selection
     bins = await database.fetch_all("SELECT * FROM bin WHERE household_id = :hid", {"hid": household_id})
-    
+
+    # Return the template with the version variable included
     return templates.TemplateResponse("print_labels.html", {
         "request": request,
+        "version": version,  # 2. PASS: Inject version for the footer
         "bins": bins,
         "household_name": current_hh["name"],
         "household_id": household_id
