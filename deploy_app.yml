@@ -6,9 +6,17 @@
     # 1. NEW: Switch the control node to the target branch
     - name: Ensure control node is on the correct branch
       delegate_to: localhost
-      ansible.builtin.command:
-        cmd: "git checkout {{ fetch_app_version }}"
+      ansible.builtin.shell: |
+        # Get current branch name
+        current_branch=$(git rev-parse --abbrev-ref HEAD)
+        # Only checkout if the requested version is different
+        if [ "$current_branch" != "{{ fetch_app_version }}" ]; then
+          git checkout {{ fetch_app_version }}
+        fi
+      args:
+        chdir: ~/fetch-control
       changed_when: false
+
     - name: Ensure app and media directories exist
       ansible.builtin.file:
         path: "{{ item }}"
