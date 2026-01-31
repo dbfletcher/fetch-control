@@ -398,11 +398,22 @@ async def upload_item_quick_photo(
 # --- Bin Management ---
 
 @app.post("/add-bin/{household_id}")
-async def add_bin(household_id: int, name: str = Form(...), location_id: str = Form(None), parent_bin_id: str = Form(None), email: str = Depends(get_current_user_email)):
-    lid = int(location_id) if location_id and location_id != "None" else None
+async def add_bin(
+    household_id: int, 
+    name: str = Form(...), 
+    parent_bin_id: str = Form(None), 
+    email: str = Depends(get_current_user_email)
+):
+    # Determine the parent bin (if any)
     pid = int(parent_bin_id) if parent_bin_id and parent_bin_id != "None" else None
-    query = "INSERT INTO bin (name, household_id, location_id, parent_bin_id) VALUES (:n, :h, :l, :p)"
-    await database.execute(query, {"n": name, "h": household_id, "l": lid, "p": pid})
+    
+    # Query updated: Removed location_id column and value
+    query = "INSERT INTO bin (name, household_id, parent_bin_id) VALUES (:n, :h, :p)"
+    await database.execute(query, {"n": name, "h": household_id, "p": pid})
+    
+    # Log the creation for your workshop audit trail
+    await log_activity(email, household_id, "ADD", f"Created new bin: '{name}'")
+    
     return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
 
 @app.post("/edit-bin/{bin_id}")
