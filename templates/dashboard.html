@@ -40,9 +40,6 @@
                     {{ bin.name }}
                 </h3>
             </div>
-            <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
-                {{ bin.name }}
-            </h3>
 
             <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
                 <form action="/edit-bin/{{ bin.id }}" method="post">
