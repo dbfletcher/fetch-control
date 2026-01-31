@@ -211,11 +211,7 @@ async def view_bin_qr(request: Request, bin_id: int):
     version = os.getenv("FETCH_VERSION", "Unknown")
 
     # Fetch the bin name and area
-    bin_data = await database.fetch_one("""
-        SELECT b.*, l.name as location_name
-        FROM bin b LEFT JOIN locations l ON b.location_id = l.id
-        WHERE b.id = :bid
-    """, {"bid": bin_id})
+    bin_data = await database.fetch_one("SELECT * FROM bin WHERE id = :bid", {"bid": bin_id})
 
     if not bin_data:
         raise HTTPException(status_code=404, detail="Bin not found")
@@ -238,16 +234,12 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
-    # Fetch physical areas for this household
-    locations = await database.fetch_all("SELECT * FROM locations WHERE household_id = :hid", {"hid": household_id})
+    # Locations are now just top-level bins; no separate table needed
+    locations = [] 
 
-    # Fetch bins with their area names via LEFT JOIN
-    bin_query = """
-        SELECT b.*, l.name as location_name
-        FROM bin b
-        LEFT JOIN locations l ON b.location_id = l.id
-        WHERE b.household_id = :hid
-    """
+    # Simplified query: no more location_id or JOIN
+    bin_query = "SELECT * FROM bin WHERE household_id = :hid"
+
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
 
     # Fetch all items belonging to these bins
@@ -417,42 +409,30 @@ async def add_bin(household_id: int, name: str = Form(...), location_id: str = F
 async def edit_bin(
     bin_id: int,
     name: str = Form(...),
-    location_id: str = Form(None),
     parent_bin_id: str = Form(None),
     email: str = Depends(get_current_user_email)
 ):
-    # 1. Fetch current state, location name, and parent ID for comparison
+    # 1. Fetch current state for comparison
+    # Removed location_id and location name JOIN as they no longer exist
     old_bin = await database.fetch_one("""
-        SELECT b.name, b.location_id, b.parent_bin_id, b.household_id, l.name as loc_name
-        FROM bin b
-        LEFT JOIN locations l ON b.location_id = l.id
-        WHERE b.id = :bid
+        SELECT name, parent_bin_id, household_id
+        FROM bin
+        WHERE id = :bid
     """, {"bid": bin_id})
 
     if not old_bin:
         raise HTTPException(status_code=404)
 
-    lid = int(location_id) if location_id and location_id != "None" else None
     pid = int(parent_bin_id) if parent_bin_id and parent_bin_id != "None" else None
 
     # 2. Update the bin in MariaDB
-    query = "UPDATE bin SET name = :n, location_id = :l, parent_bin_id = :p WHERE id = :bid"
-    await database.execute(query, {"n": name, "l": lid, "p": pid, "bid": bin_id})
+    # Removed location_id from the SET clause
+    query = "UPDATE bin SET name = :n, parent_bin_id = :p WHERE id = :bid"
+    await database.execute(query, {"n": name, "p": pid, "bid": bin_id})
 
-    # 3. Precise Logging for your audit trail
-    # Check for Location changes (Garage vs Basement)
-    if old_bin['location_id'] != lid:
-        new_loc = await database.fetch_one("SELECT name FROM locations WHERE id = :lid", {"lid": lid})
-        old_loc_name = old_bin['loc_name'] or "Unassigned Area"
-        new_loc_name = new_loc['name'] if new_loc else "Unassigned Area"
-
-        await log_activity(
-            email, old_bin['household_id'], "MOVE",
-            f"Relocated bin '{name}' from '{old_loc_name}' to '{new_loc_name}'"
-        )
-    
-    # Check for Nesting changes
-    elif old_bin['parent_bin_id'] != pid:
+    # 3. Log changes for your audit trail
+    # Check for Nesting changes (Infinite Nesting logic)
+    if old_bin['parent_bin_id'] != pid:
         parent_name = "Top Level"
         if pid:
             parent = await database.fetch_one("SELECT name FROM bin WHERE id = :pid", {"pid": pid})

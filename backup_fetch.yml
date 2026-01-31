@@ -1,0 +1,90 @@
+---
+- name: Backup Project Fetch with GFS Retention
+  hosts: fetch_app
+  vars:
+    backup_target: "192.168.50.53"
+    backup_user: "pi"
+    backup_path: "/backup/fetch"
+    db_name: "fetch_db"
+    media_path: "/var/www/fetch/media"
+    # Added full timestamp for multiple iterations per day
+    timestamp: "{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+
+  tasks:
+    - name: Ensure backup directories exist on ASUS VM
+      delegate_to: "{{ backup_target }}"
+      remote_user: "{{ backup_user }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ backup_path }}/db"
+        - "{{ backup_path }}/images/highres"
+        - "{{ backup_path }}/images/lowres"
+
+    - name: Create migration-friendly database dump
+      ansible.builtin.shell: >
+        mysqldump --user=root --password='password' --complete-insert --routines --triggers {{ db_name }} > /tmp/fetch_backup.sql
+      changed_when: false
+
+    - name: Pull database dump to Ansible Control Node
+      ansible.builtin.fetch:
+        src: /tmp/fetch_backup.sql
+        dest: /tmp/fetch_backup.sql
+        flat: true
+
+    - name: Push database dump from Control Node to ASUS VM
+      delegate_to: "{{ backup_target }}"
+      remote_user: "{{ backup_user }}"
+      ansible.builtin.copy:
+        src: /tmp/fetch_backup.sql
+        # Filename now includes date and time
+        dest: "{{ backup_path }}/db/fetch_{{ timestamp }}.sql"
+        mode: '0644'
+
+    - name: Push inventory images to ASUS VM
+      ansible.builtin.shell: >
+        rsync -avz {{ media_path }}/{{ item }}/ {{ backup_user }}@{{ backup_target }}:{{ backup_path }}/images/{{ item }}/
+      loop:
+        - highres
+        - lowres
+      changed_when: true
+
+    - name: Run Retention Pruning on ASUS VM
+      # This logic keeps:
+      # 1. Daily backups for 30 days
+      # 2. The 1st of every month for 12 months
+      # 3. The 1st of every January indefinitely
+      delegate_to: "{{ backup_target }}"
+      remote_user: "{{ backup_user }}"
+      ansible.builtin.shell: |
+        cd {{ backup_path }}/db
+        for file in fetch_*.sql; do
+          # Extract date (YYYY-MM-DD) from fetch_YYYY-MM-DD_HHMM.sql
+          file_date=$(echo $file | cut -d'_' -f2)
+          day=$(echo $file_date | cut -d'-' -f3)
+          month=$(echo $file_date | cut -d'-' -f2)
+          
+          # 1. Keep January 1st (Yearly) forever
+          if [[ "$month" == "01" && "$day" == "01" ]]; then continue; fi
+          
+          # 2. Keep the 1st of any month for 365 days
+          if [[ "$day" == "01" ]]; then
+            find . -name "$file" -mtime +365 -delete
+            continue
+          fi
+          
+          # 3. Keep everything else (dailies) for 30 days
+          find . -name "$file" -mtime +30 -delete
+        done
+      changed_when: true
+
+    - name: Cleanup temporary dump
+      delegate_to: "{{ item }}"
+      ansible.builtin.file:
+        path: /tmp/fetch_backup.sql
+        state: absent
+      loop:
+        - localhost
+        - fetch_app
