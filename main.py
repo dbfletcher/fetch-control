@@ -238,7 +238,8 @@ async def get_bins(request: Request, household_id: int, email: str = Depends(get
     locations = [] 
 
     # Simplified query: no more location_id or JOIN
-    bin_query = "SELECT * FROM bin WHERE household_id = :hid"
+    # Added ORDER BY name to ensure alphabetical sorting at the same depth
+    bin_query = "SELECT * FROM bin WHERE household_id = :hid ORDER BY name ASC"
 
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
 

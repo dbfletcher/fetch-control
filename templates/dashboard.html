@@ -63,12 +63,19 @@
             </div>
 
             <div class="nested-bins-wrapper" style="margin-top: 15px;">
-                {% for child in bins if child.parent_bin_id == bin.id %}
-                    {% set child_items = items | selectattr("bin_id", "equalto", child.id) | list %}
-                    {% if child.name != 'Unassigned' or child_items | length > 0 %}
-                        {{ render_bin(child, level + 1, items, bins, locations, current_household_id, path + [{'id': bin.id, 'name': bin.name}]) }}
-                    {% endif %}
-                {% endfor %}
+                {% set children = bins | selectattr("parent_bin_id", "equalto", bin.id) | list %}
+                {% if children %}
+                    <details style="margin-bottom: 10px; border-left: 2px solid #ddd; padding-left: 15px;">
+                        <summary style="cursor: pointer; color: var(--primary); font-size: 0.9em; font-weight: bold; outline: none; margin-bottom: 10px;">
+                            📂 Show {{ children | length }} Sub-Bins in {{ bin.name }}
+                        </summary>
+                        {% for child in children %}
+                            {% set child_items = items | selectattr("bin_id", "equalto", child.id) | list %}
+                            {# Alphabetical order is handled by the SQL query in main.py #}
+                            {{ render_bin(child, level + 1, items, bins, locations, current_household_id, path + [{'id': bin.id, 'name': bin.name}]) }}
+                        {% endfor %}
+                    </details>
+                {% endif %}
             </div>
 
             <details class="items-details" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
