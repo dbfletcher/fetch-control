@@ -7,27 +7,10 @@
     {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
 
     <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 25px); border-left: {{ '4px solid var(--primary)' if level > 0 else 'none' }}; margin-bottom: 25px; scroll-margin-top: 80px;">
-
-        <div class="bin-photo-container" style="height: {{ header_height }}px; width: {{ header_width }}%; margin: 0 auto; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid #333;">
-            {% if bin.location_image %}
-                <div onclick="openLightbox('/highres/{{ bin.location_image }}')" style="width:100%; height:100%; display:flex; justify-content:center; cursor: zoom-in;">
-                    {# object-fit: contain prevents cropping of your inventory photos #}
-                    <img src="/lowres/{{ bin.location_image }}" title="Click for Full View" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                </div>
-                <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:8px; right:8px;" onsubmit="return confirm('Delete bin photo?')">
-                    <button type="submit" class="btn-delete-photo" style="width:28px; height:28px; font-size:16px;">×</button>
-                </form>
-            {% else %}
-                <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data" style="padding:{{ header_height/4 }}px; text-align:center;">
-                    <input type="file" name="file" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="up-{{ bin.id }}" style="display:none;">
-                    <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold; font-size: {{ '1em' if level == 0 else '0.8em' }};">+ Add Photo</label>
-                </form>
-            {% endif %}
-        </div>
-
+        
         <div style="padding: 20px; border-top: 5px solid var(--primary);">
             {% if path %}
-            <div style="font-size: 0.72em; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="font-size: 0.72em; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
                 {% for step in path %}
                     <a href="#bin-{{ step.id }}" style="color: var(--primary); text-decoration: none; font-weight: bold;">{{ step.name }}</a>
                     <span style="margin: 0 4px; opacity: 0.5;">&gt;</span>
@@ -35,11 +18,31 @@
             </div>
             {% endif %}
 
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
+            <div style="display:flex; align-items:center; gap:20px; margin-bottom: 10px;">
+                {# Small Bin Image to the left of the title #}
+                <div style="width: 80px; height: 80px; flex-shrink: 0; background: #000; border-radius: 8px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #ddd;">
+                    {% if bin.location_image %}
+                        <div onclick="openLightbox('/highres/{{ bin.location_image }}')" style="width:100%; height:100%; display:flex; justify-content:center; cursor: zoom-in;">
+                            <img src="/lowres/{{ bin.location_image }}" title="Click for Full View" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        </div>
+                        <form action="/delete-location-photo/{{ bin.id }}" method="post" style="position:absolute; top:2px; right:2px;" onsubmit="return confirm('Delete bin photo?')">
+                            <button type="submit" class="btn-delete-photo" style="width:20px; height:20px; font-size:12px;">×</button>
+                        </form>
+                    {% else %}
+                        <form action="/upload-location/{{ bin.id }}" method="post" enctype="multipart/form-data">
+                            <input type="file" name="file" accept="image/*" capture="environment" onchange="handleFileSelect(this, this.form)" id="up-{{ bin.id }}" style="display:none;">
+                            <label for="up-{{ bin.id }}" style="cursor:pointer; color:var(--primary); font-weight:bold; font-size: 0.8em;">+ Photo</label>
+                        </form>
+                    {% endif %}
+                </div>
+
+                <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; flex-grow: 1; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
                     {{ bin.name }}
                 </h3>
             </div>
+            <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
+                {{ bin.name }}
+            </h3>
 
             <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
                 <form action="/edit-bin/{{ bin.id }}" method="post">
