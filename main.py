@@ -347,29 +347,6 @@ async def print_labels_page(request: Request, household_id: int, email: str = De
         "household_id": household_id
     })
 
-# --- Physical Area (Location) Management ---
-
-@app.post("/add-location/{household_id}")
-async def add_location(household_id: int, name: str = Form(...), email: str = Depends(get_current_user_email)):
-    query = "INSERT INTO locations (household_id, name) VALUES (:hid, :name)"
-    await database.execute(query, {"hid": household_id, "name": name})
-    return RedirectResponse(url=f"/bins/{household_id}", status_code=303)
-
-@app.post("/delete-location/{location_id}")
-async def delete_location(location_id: int, force: bool = Form(False), email: str = Depends(get_current_user_email)):
-    """Deletes an area. Rejects if bins exist unless 'force' is used."""
-    loc = await database.fetch_one("SELECT household_id, name FROM locations WHERE id = :lid", {"lid": location_id})
-    if not loc: raise HTTPException(status_code=404)
-    
-    count = await database.fetch_one("SELECT COUNT(*) as total FROM bin WHERE location_id = :lid", {"lid": location_id})
-    
-    if count['total'] > 0 and not force:
-        error_msg = f"Area '{loc['name']}' is in use by {count['total']} bins."
-        return RedirectResponse(url=f"/bins/{loc['household_id']}?error={error_msg}&location_id={location_id}", status_code=303)
-
-    await database.execute("DELETE FROM locations WHERE id = :lid", {"lid": location_id})
-    return RedirectResponse(url=f"/bins/{loc['household_id']}", status_code=303)
-
 @app.post("/upload-item-photo/{item_id}")
 async def upload_item_quick_photo(
     item_id: int, 
