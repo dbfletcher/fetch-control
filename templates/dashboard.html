@@ -167,6 +167,7 @@
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; background: #f0f2f5; height: 100vh; overflow: hidden; }
         .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; transition: 0.3s; position: fixed; height: 100%; z-index: 1001; }
         .sidebar input, .sidebar select { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); width: 100%; padding: 10px; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; }
+        .sidebar select option { background-color: var(--sidebar-bg); color: white; }
         .main-content { flex-grow: 1; margin-left: var(--sidebar-width); height: 100vh; overflow-y: auto; width: 100%; scroll-behavior: smooth; }
         .top-bar { background: white; padding: 12px 25px; display: flex; align-items: center; border-bottom: 1px solid #e1e4e8; position: sticky; top: 0; z-index: 10; gap: 15px; }
         .bin-list-container { padding: 25px; display: flex; flex-direction: column; gap: 25px; }
