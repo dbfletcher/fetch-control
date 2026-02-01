@@ -227,48 +227,57 @@ async def view_bin_qr(request: Request, bin_id: int):
     })
 
 @app.get("/bins/{household_id}", response_class=HTMLResponse)
-async def get_bins(request: Request, household_id: int, email: str = Depends(get_current_user_email)):
+async def get_bins(
+    request: Request, 
+    household_id: int, 
+    zoom: int = None,  # Parameter to trigger the "Zoom to Bin" view
+    email: str = Depends(get_current_user_email)
+):
+    # 1. Verify access to the requested household
     households = await get_user_households(email)
     current_hh = next((h for h in households if h["id"] == household_id), None)
 
     if not current_hh:
         raise HTTPException(status_code=403, detail="Access Denied")
 
-    # Locations are now just top-level bins; no separate table needed
-    locations = [] 
+    # 2. Determine the display name for the header
+    if zoom:
+        # Fetch the specific bin to use its name as the zoomed header
+        zoom_bin = await database.fetch_one("SELECT name FROM bin WHERE id = :bid", {"bid": zoom})
+        household_name = f"🔍 {zoom_bin['name']}" if zoom_bin else current_hh["name"]
+    else:
+        household_name = current_hh["name"]
 
-    # Simplified query: no more location_id or JOIN
-    # Added ORDER BY name to ensure alphabetical sorting at the same depth
+    # 3. Fetch all bins sorted alphabetically
+    # This ensures your 'Prusa' or 'Cisco' gear stays in order at every depth
     bin_query = "SELECT * FROM bin WHERE household_id = :hid ORDER BY name ASC"
-
     bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
 
-    # Fetch all items belonging to these bins
+    # 4. Fetch all items for the total value calculation and rendering
     items = await database.fetch_all("""
         SELECT i.* FROM items i
         JOIN bin b ON i.bin_id = b.id
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
-    # Total inventory value calculation
+    # 5. Calculate the total inventory value
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
 
-    # READ: Pull the branch name from the Systemd environment variable
+    # 6. Retrieve version info from the environment
     version = os.getenv("FETCH_VERSION", "Unknown")
 
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
-        "version": version,  # PASS: Send the branch name to the HTML template
+        "version": version,
         "bins": bins,
         "items": items,
-        "locations": locations,
         "email": email,
         "available_households": households,
         "current_household_id": household_id,
-        "household_name": current_hh["name"],
+        "household_name": household_name,
         "total_value": total_value,
-        "error": request.query_params.get("error"),
-        "error_location_id": request.query_params.get("location_id")
+        "zoom_id": zoom,  # Essential for triggering the template filter
+        "error": request.query_params.get("error")
     })
 
 async def get_bin_path(bin_id: int):

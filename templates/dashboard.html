@@ -278,11 +278,19 @@
         </div>
 
         <div class="bin-list-container">
-            {% for bin in bins if not bin.parent_bin_id %}
-                {% if bin.name != 'Unassigned' %}
+            {% if zoom_id %}
+                {# Render only the zoomed bin at level 0 to reset indentation #}
+                {% for bin in bins if bin.id == zoom_id %}
                     {{ render_bin(bin, 0, items, bins, locations, current_household_id, []) }}
-                {% endif %}
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                {# Normal behavior: Render all top-level bins #}
+                {% for bin in bins if not bin.parent_bin_id %}
+                    {% if bin.name != 'Unassigned' %}
+                        {{ render_bin(bin, 0, items, bins, locations, current_household_id, []) }}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
         </div>
         <footer style="margin-top: 50px; padding: 20px; text-align: center; border-top: 1px solid #ddd; color: #888; font-size: 0.8em;">
             Project Fetch Version: <strong style="color: var(--primary);">{{ version }}</strong>
