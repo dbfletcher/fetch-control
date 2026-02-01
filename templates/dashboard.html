@@ -305,10 +305,13 @@
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
             const cards = document.getElementsByClassName('bin-card');
+
             for (let card of cards) {
                 const itemRows = card.getElementsByClassName('item-row');
                 const itemsDetails = card.querySelector('.items-details');
+                const hierarchyDetails = card.querySelector('.bin-hierarchy-details');
                 let binHasMatch = false;
+                
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
                 const binMatch = binTitle.includes(input);
 
@@ -318,18 +321,38 @@
                         const editModal = row.nextElementSibling;
                         if (editModal) {
                             text += " " + (editModal.querySelector('textarea')?.value.toLowerCase() || "");
-                            text += " " + (editModal.querySelector('input[type=\"url\"]')?.value.toLowerCase() || "");
+                            text += " " + (editModal.querySelector('input[type="url"]')?.value.toLowerCase() || "");
                         }
                     }
                     const isMatch = (input.length > 0 && text.includes(input)) || binMatch;
                     row.style.display = isMatch ? "flex" : "none";
+                    
                     if (isMatch && input.length > 0) {
                         binHasMatch = true;
+                        // Auto-expand the parts list if a part matches
                         if (itemsDetails) itemsDetails.open = true;
+                        
+                        // Recursively expand all parent bins to show this result
+                        let parent = card.parentElement;
+                        while (parent) {
+                            if (parent.tagName === 'DETAILS') parent.open = true;
+                            parent = parent.parentElement;
+                        }
                     }
                 }
-                if (input.length === 0 && itemsDetails) { itemsDetails.open = false; }
+
+                // If the bin name itself matches, show it but keep children collapsed unless searching
+                if (binMatch && input.length > 0) {
+                    binHasMatch = true;
+                }
+
                 card.style.display = (binHasMatch || binMatch || input.length === 0) ? "" : "none";
+                
+                // Reset to collapsed state if the search is cleared
+                if (input.length === 0) {
+                    if (itemsDetails) itemsDetails.open = false;
+                    if (hierarchyDetails) hierarchyDetails.open = false;
+                }
             }
         }
 
