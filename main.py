@@ -602,9 +602,9 @@ async def edit_item(
 
 @app.post("/delete-item/{item_id}")
 async def delete_item(item_id: int, email: str = Depends(get_current_user_email)):
-    # 1. Get info before it's gone for the log
+    # 1. Fetch info and image details before deletion
     item = await database.fetch_one("""
-        SELECT i.name, b.household_id, b.name as bin_name 
+        SELECT i.name, i.high_res_image, b.household_id, b.name as bin_name 
         FROM items i 
         JOIN bin b ON i.bin_id = b.id 
         WHERE i.id = :iid
@@ -613,8 +613,17 @@ async def delete_item(item_id: int, email: str = Depends(get_current_user_email)
     if not item:
         raise HTTPException(status_code=404)
 
-    # 2. Delete and Log
+    # 2. Delete physical files from your media folders
+    if item['high_res_image']:
+        for folder in [HIGHRES_DIR, LOWRES_DIR]:
+            path = os.path.join(folder, item['high_res_image'])
+            if os.path.exists(path):
+                os.remove(path)
+
+    # 3. Remove the record from MariaDB
     await database.execute("DELETE FROM items WHERE id = :iid", {"iid": item_id})
+
+    # 4. Log the permanent deletion for the audit trail
     await log_activity(
         email, 
         item['household_id'], 
@@ -624,15 +633,38 @@ async def delete_item(item_id: int, email: str = Depends(get_current_user_email)
     
     return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
 
-@app.post("/delete-item/{item_id}")
-async def delete_item(item_id: int, email: str = Depends(get_current_user_email)):
-    res = await database.fetch_one("SELECT b.household_id, i.high_res_image FROM items i JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid", {"iid": item_id})
-    if res['high_res_image']:
-        for folder in [HIGHRES_DIR, LOWRES_DIR]:
-            path = os.path.join(folder, res['high_res_image'])
-            if os.path.exists(path): os.remove(path)
-    await database.execute("DELETE FROM items WHERE id = :iid", {"iid": item_id})
-    return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
+@app.post("/update-qty/{item_id}/{delta}")
+async def update_qty(item_id: int, delta: int, email: str = Depends(get_current_user_email)):
+    item = await database.fetch_one("""
+        SELECT i.name, i.quantity, b.household_id FROM items i 
+        JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
+    """, {"iid": item_id})
+    
+    if not item: raise HTTPException(status_code=404)
+    
+    new_qty = max(0, item['quantity'] + delta)
+    await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
+    
+    action = "INCREASE" if delta > 0 else "DECREASE"
+    await log_activity(email, item['household_id'], action, f"Adjusted '{item['name']}' qty by {delta}. New total: {new_qty}")
+    
+    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
+
+@app.post("/checkout-item/{item_id}")
+async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depends(get_current_user_email)):
+    item = await database.fetch_one("""
+        SELECT i.name, i.quantity, b.household_id FROM items i 
+        JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
+    """, {"iid": item_id})
+    
+    if not item: raise HTTPException(status_code=404)
+    
+    new_qty = max(0, item['quantity'] - amount)
+    await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
+    
+    await log_activity(email, item['household_id'], "CHECKOUT", f"Checked out {amount}x '{item['name']}'. Remaining: {new_qty}")
+    
+    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
 
 @app.post("/move-item/{item_id}")
 async def move_item(

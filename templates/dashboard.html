@@ -85,6 +85,18 @@
                 </summary>
                 {% for item in bin_items %}
                     <div class="item-row" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                        <div style="display: flex; flex-direction: column; gap: 4px; margin-right: 10px;">
+                            <form action="/update-qty/{{ item.id }}/1" method="post" style="margin:0;">
+                                <button type="submit" style="font-size: 0.8em; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff;">+</button>
+                            </form>
+                            <form action="/update-qty/{{ item.id }}/-1" method="post" style="margin:0;">
+                                <button type="submit" style="font-size: 0.8em; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff;">-</button>
+                            </form>
+                            <button onclick="promptCheckout({{ item.id }}, '{{ item.name }}', {{ item.quantity }})" 
+                                    style="font-size: 0.7em; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; cursor: pointer; background: var(--primary); color: white; text-transform: uppercase; font-weight: bold;">
+                                Out
+                            </button>
+                        </div>
                         <div class="item-thumb-container" style="position: relative; width: {{ thumb_size }}px; height: {{ thumb_size }}px; flex-shrink: 0; background: #fff; border: 1px solid #eee; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                             {% if item.high_res_image %}
                                 <div onclick="openLightbox('/highres/{{ item.high_res_image }}')" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; cursor: zoom-in;">
@@ -359,6 +371,22 @@
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
+
+        function promptCheckout(itemId, itemName, currentQty) {
+            const amount = prompt(`How many ${itemName} are you checking out? (Current: ${currentQty})`);
+            if (amount !== null && amount !== "" && !isNaN(amount)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/checkout-item/${itemId}`;
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'amount';
+                input.value = amount;
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
     </script>
 </body>
 </html>
