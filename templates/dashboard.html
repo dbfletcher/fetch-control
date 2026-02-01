@@ -96,6 +96,10 @@
                                     style="font-size: 0.7em; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; cursor: pointer; background: var(--primary); color: white; text-transform: uppercase; font-weight: bold;">
                                 Out
                             </button>
+                            <button onclick="promptCheckin({{ item.id }}, '{{ item.name }}')" 
+                                    style="font-size: 0.7em; padding: 2px 4px; border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; background: var(--accent); color: white; text-transform: uppercase; font-weight: bold;">
+                                In
+                            </button>
                         </div>
                         <div class="item-thumb-container" style="position: relative; width: {{ thumb_size }}px; height: {{ thumb_size }}px; flex-shrink: 0; background: #fff; border: 1px solid #eee; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                             {% if item.high_res_image %}
@@ -386,6 +390,38 @@
                 document.body.appendChild(form);
                 form.submit();
             }
+        }
+
+        async function promptCheckin(itemId, itemName) {
+            const inAmount = parseInt(prompt(`How many ${itemName} are you checking back in?`));
+            if (isNaN(inAmount) || inAmount <= 0) return;
+
+            // Fetch the last checkout amount for this item from the activity log
+            const response = await fetch(`/get-last-checkout/${itemId}`);
+            const data = await response.json();
+            const lastOut = data.amount || 0;
+
+            let consumed = 0;
+            if (inAmount < lastOut) {
+                const remaining = lastOut - inAmount;
+                if (confirm(`${inAmount} is less than the ${lastOut} checked out. Have the remaining ${remaining} been consumed? (Cancel means they stay checked out)`)) {
+                    consumed = remaining;
+                }
+            }
+
+            // Submit to the backend
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/checkin-item/${itemId}`;
+            
+            const fields = { 'amount': inAmount, 'consumed': consumed };
+            for (const [key, value] of Object.entries(fields)) {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = key; input.value = value;
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+            form.submit();
         }
     </script>
 </body>

@@ -666,6 +666,42 @@ async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depe
     
     return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
 
+@app.get("/get-last-checkout/{item_id}")
+async def get_last_checkout(item_id: int):
+    # Parses the activity log for the last 'CHECKOUT' for this item
+    log = await database.fetch_one("""
+        SELECT description FROM activity_log 
+        WHERE description LIKE :match AND action_type = 'CHECKOUT'
+        ORDER BY created_at DESC LIMIT 1
+    """, {"match": f"%item_id:{item_id}%"})
+    
+    # We'll need to update the checkout logger to include the ID for easier parsing
+    import re
+    amount = 0
+    if log:
+        match = re.search(r"Checked out (\d+)", log['description'])
+        if match: amount = int(match.group(1))
+    return {"amount": amount}
+
+@app.post("/checkin-item/{item_id}")
+async def checkin_item(item_id: int, amount: int = Form(...), consumed: int = Form(0), email: str = Depends(get_current_user_email)):
+    item = await database.fetch_one("""
+        SELECT i.name, i.quantity, b.household_id FROM items i 
+        JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
+    """, {"iid": item_id})
+    
+    if not item: raise HTTPException(status_code=404)
+    
+    new_qty = item['quantity'] + amount
+    await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
+    
+    msg = f"Checked in {amount}x '{item['name']}'."
+    if consumed > 0:
+        msg += f" {consumed}x marked as consumed/lost."
+    
+    await log_activity(email, item['household_id'], "CHECKIN", f"{msg} (ref_item_id:{item_id})")
+    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
+
 @app.post("/move-item/{item_id}")
 async def move_item(
     item_id: int, 
