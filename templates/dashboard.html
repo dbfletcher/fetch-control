@@ -199,7 +199,15 @@
         .btn-save { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; padding: 10px; border-radius: 4px; width: 100%; text-align: center; display: block; }
         .clickable { cursor: pointer; transition: 0.2s; }
         .clickable:hover { color: var(--primary); }
-        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.active { transform: translateX(0); } .main-content { margin-left: 0; } }
+        /* Sidebar hidden state for Desktop */
+        .sidebar.collapsed { transform: translateX(-100%); }
+        .main-content.expanded { margin-left: 0 !important; }
+
+        @media (max-width: 768px) { 
+            .sidebar { transform: translateX(-100%); } 
+            .sidebar.active { transform: translateX(0); } 
+            .main-content { margin-left: 0 !important; } 
+        }
     </style>
 </head>
 <body>
@@ -293,7 +301,19 @@
 
     <script>
         let cropper; let currentForm;
-        function toggleSidebar() { const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent'); if (window.innerWidth <= 768) { s.classList.toggle('active'); } else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); } }
+        function toggleSidebar() {
+            const s = document.getElementById('sidebar');
+            const m = document.getElementById('mainContent');
+            
+            // If we are on a small screen (mobile)
+            if (window.innerWidth <= 768) {
+                s.classList.toggle('active');
+            } else {
+                // Desktop: Toggle the collapsed state
+                s.classList.toggle('collapsed');
+                m.classList.toggle('expanded');
+            }
+        }
         
         function toggleAllDetails(shouldOpen) {
             // Only toggle the inventory structure, leaving the "Add Part" forms closed
