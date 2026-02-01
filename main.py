@@ -514,41 +514,24 @@ async def add_item(
     description: str = Form(None),
     item_url: str = Form(None),
     image: UploadFile = File(None),
+    zoom: int = None,  # Added zoom parameter
     email: str = Depends(get_current_user_email)
 ):
-    # 1. Get the household context before doing anything
-    check = await database.fetch_one(
-        "SELECT household_id, name as bin_name FROM bin WHERE id = :bid", 
-        {"bid": bin_id}
-    )
+    check = await database.fetch_one("SELECT household_id, name as bin_name FROM bin WHERE id = :bid", {"bid": bin_id})
     
-    filename = None
-    if image and image.filename:
-        filename = f"item_{uuid.uuid4()}.jpg"
-        content = await image.read()
-        process_and_save_image(content, filename)
+    filename = f"item_{uuid.uuid4()}.jpg" if image and image.filename else None
+    if filename: process_and_save_image(await image.read(), filename)
 
-    # 2. Insert the item into the database
     query = """
         INSERT INTO items (bin_id, name, quantity, price, description, item_url, high_res_image)
         VALUES (:bid, :n, :q, :p, :d, :u, :img)
     """
-    await database.execute(query, {
-        "bid": bin_id, "n": name, "q": quantity, 
-        "p": price, "d": description, "u": item_url, "img": filename
-    })
+    await database.execute(query, {"bid": bin_id, "n": name, "q": quantity, "p": price, "d": description, "u": item_url, "img": filename})
+    await log_activity(email, check['household_id'], "ADD", f"Added {quantity}x '{name}' to bin '{check['bin_name']}'")
 
-    # 3. Log the activity for your Indiana workshop audit trail
-    # This uses the helper we discussed to link your email to the household action
-    await log_activity(
-        email, 
-        check['household_id'], 
-        "ADD", 
-        f"Added {quantity}x '{name}' to bin '{check['bin_name']}'"
-    )
-
-    # After adding the part, redirect to the specific bin anchor
-    return RedirectResponse(url=f"/bins/{check['household_id']}#bin-{bin_id}", status_code=303)
+    # Redirect with zoom persistence and bin anchor
+    url = f"/bins/{check['household_id']}?zoom={zoom}#bin-{bin_id}" if zoom else f"/bins/{check['household_id']}#bin-{bin_id}"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/edit-item/{item_id}")
 async def edit_item(
@@ -699,9 +682,15 @@ async def get_last_checkout(item_id: int):
     return {"amount": amount}
 
 @app.post("/checkin-item/{item_id}")
-async def checkin_item(item_id: int, amount: int = Form(...), consumed: int = Form(0), email: str = Depends(get_current_user_email)):
+async def checkin_item(
+    item_id: int, 
+    amount: int = Form(...), 
+    consumed: int = Form(0), 
+    zoom: int = None, # Added zoom parameter
+    email: str = Depends(get_current_user_email)
+):
     item = await database.fetch_one("""
-        SELECT i.name, i.quantity, b.household_id FROM items i 
+        SELECT i.name, i.quantity, i.bin_id, b.household_id FROM items i 
         JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
     """, {"iid": item_id})
     
@@ -711,12 +700,13 @@ async def checkin_item(item_id: int, amount: int = Form(...), consumed: int = Fo
     await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
     
     msg = f"Checked in {amount}x '{item['name']}'."
-    if consumed > 0:
-        msg += f" {consumed}x marked as consumed/lost."
+    if consumed > 0: msg += f" {consumed}x marked as consumed/lost."
     
     await log_activity(email, item['household_id'], "CHECKIN", f"{msg} (ref_item_id:{item_id})")
-    # Redirect back to the specific bin so it stays expanded
-    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
+    
+    # Maintain zoom and scroll to modified bin
+    url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/move-item/{item_id}")
 async def move_item(

@@ -163,7 +163,7 @@
 
             <details style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
                 <summary style="cursor:pointer; color:var(--primary); font-weight:bold; font-size:0.95em;">+ Add New Part to {{ bin.name }}</summary>
-                <form action="/add-item/{{ bin.id }}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
+                <form action="/add-item/{{ bin.id }}{% if zoom_id %}?zoom={{ zoom_id }}{% endif %}" method="post" enctype="multipart/form-data" style="margin-top:15px; background:#f9f9f9; padding:20px; border-radius:10px; border:1px solid #ddd;">
                     <input type="text" name="name" placeholder="Part Name" required style="width:100%; padding:10px; margin-bottom:10px; border-radius:4px; border:1px solid #ccc;">
                     <div style="display:flex; gap:10px; margin-bottom:10px;">
                         <input type="number" name="quantity" value="1" style="width:30%; padding:10px; border-radius:4px; border:1px solid #ccc;">
@@ -430,14 +430,16 @@
         }
 
         async function promptCheckin(itemId, itemName) {
+            // 1. Ask for the basic return amount
             const inAmount = parseInt(prompt(`How many ${itemName} are you checking back in?`));
             if (isNaN(inAmount) || inAmount <= 0) return;
 
-            // Fetch the last checkout amount for this item from the activity log
+            // 2. Fetch the last checkout amount for this item from the activity log
             const response = await fetch(`/get-last-checkout/${itemId}`);
             const data = await response.json();
             const lastOut = data.amount || 0;
 
+            // 3. Handle consumption if the return is partial
             let consumed = 0;
             if (inAmount < lastOut) {
                 const remaining = lastOut - inAmount;
@@ -446,21 +448,27 @@
                 }
             }
 
-            // Submit to the backend
+            // 4. Detect current zoom state to maintain view after refresh
+            const zoomId = new URLSearchParams(window.location.search).get('zoom');
+
+            // 5. Build and submit the hidden form
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/checkin-item/${itemId}`;
+            // Append zoom parameter to action URL if it exists
+            form.action = `/checkin-item/${itemId}${zoomId ? '?zoom=' + zoomId : ''}`;
             
             const fields = { 'amount': inAmount, 'consumed': consumed };
             for (const [key, value] of Object.entries(fields)) {
                 const input = document.createElement('input');
-                input.type = 'hidden'; input.name = key; input.value = value;
+                input.type = 'hidden'; 
+                input.name = key; 
+                input.value = value;
                 form.appendChild(input);
             }
+            
             document.body.appendChild(form);
             form.submit();
         }
-
         window.addEventListener('DOMContentLoaded', (event) => {
             // Check if there is a specific bin ID in the URL hash (e.g., #bin-123)
             const hash = window.location.hash;
