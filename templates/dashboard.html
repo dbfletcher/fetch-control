@@ -65,7 +65,8 @@
             <div class="nested-bins-wrapper" style="margin-top: 15px;">
                 {% set children = bins | selectattr("parent_bin_id", "equalto", bin.id) | list %}
                 {% if children %}
-                    <details style="margin-bottom: 10px; border-left: 2px solid #ddd; padding-left: 15px;">
+                    {# Added the bin-hierarchy-details class to distinguish it from forms #}
+                    <details class="bin-hierarchy-details" style="margin-bottom: 10px; border-left: 2px solid #ddd; padding-left: 15px;">
                         <summary style="cursor: pointer; color: var(--primary); font-size: 0.9em; font-weight: bold; outline: none; margin-bottom: 10px;">
                             📂 Show {{ children | length }} Sub-Bins in {{ bin.name }}
                         </summary>
@@ -279,9 +280,9 @@
         function toggleSidebar() { const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent'); if (window.innerWidth <= 768) { s.classList.toggle('active'); } else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); } }
         
         function toggleAllDetails(shouldOpen) {
-            // Selects all details elements to handle infinite nesting
-            const allDetails = document.querySelectorAll('details');
-            allDetails.forEach(details => {
+            // Only toggle the inventory structure, leaving the "Add Part" forms closed
+            const targets = document.querySelectorAll('.bin-hierarchy-details, .items-details');
+            targets.forEach(details => {
                 details.open = shouldOpen;
             });
         }
