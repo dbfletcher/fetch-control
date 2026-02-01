@@ -39,6 +39,9 @@
                 <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; flex-grow: 1; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
                     {{ bin.name }}
                 </h3>
+
+                {# Mobile-friendly Zoom Button #}
+                <a href="?zoom={{ bin.id }}" title="Zoom into this bin" style="text-decoration:none; font-size: 1.1em; padding: 4px 8px; background: #eee; border-radius: 6px; border: 1px solid #ccc; color: #333; margin-left: 10px;">🔍</a>
             </div>
 
             <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
@@ -253,6 +256,12 @@
             <h2 style="margin: 0;">{{ household_name }}</h2>
             
             <div style="display: flex; gap: 8px; margin-left: 15px;">
+                {% if zoom_id %}
+                    {# Return to full household view #}
+                    <a href="/bins/{{ current_household_id }}" style="text-decoration:none; background: var(--danger); color: white; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; font-weight: bold; display: flex; align-items: center;">
+                        ⬅ Zoom Out
+                    </a>
+                {% endif %}
                 {# Expand All: Sets 'open' to true for all hierarchy levels #}
                 <button onclick="toggleAllDetails(true)" style="background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
                     Expand All
