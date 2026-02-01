@@ -226,8 +226,22 @@
         <div class="top-bar">
             <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
             <h2 style="margin: 0;">{{ household_name }}</h2>
-            <button onclick="document.querySelectorAll('.items-details').forEach(d => d.open = false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 15px; font-weight: bold;">Collapse All</button>
-            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold;">Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}</div>
+            
+            <div style="display: flex; gap: 8px; margin-left: 15px;">
+                {# Expand All: Sets 'open' to true for all hierarchy levels #}
+                <button onclick="toggleAllDetails(true)" style="background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
+                    Expand All
+                </button>
+                
+                {# Collapse All: Sets 'open' to false for a clean overview #}
+                <button onclick="toggleAllDetails(false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
+                    Collapse All
+                </button>
+            </div>
+
+            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold;">
+                Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
+            </div>
         </div>
 
         <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
@@ -264,6 +278,14 @@
         let cropper; let currentForm;
         function toggleSidebar() { const s = document.getElementById('sidebar'); const m = document.getElementById('mainContent'); if (window.innerWidth <= 768) { s.classList.toggle('active'); } else { s.classList.toggle('collapsed'); m.classList.toggle('expanded'); } }
         
+        function toggleAllDetails(shouldOpen) {
+            // Selects all details elements to handle infinite nesting
+            const allDetails = document.querySelectorAll('details');
+            allDetails.forEach(details => {
+                details.open = shouldOpen;
+            });
+        }
+
         // Amazon-style Image Viewer Logic
         function openLightbox(src) {
             const modal = document.getElementById('viewImageModal');
