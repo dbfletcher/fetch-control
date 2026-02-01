@@ -631,65 +631,69 @@ async def update_qty(item_id: int, delta: int, zoom: int = None, email: str = De
     url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
     return RedirectResponse(url=url, status_code=303)
 
+@app.get("/get-outstanding/{item_id}")
+async def get_outstanding(item_id: int):
+    # Sum all OUTs and subtract all INs/LOSTs for this item
+    logs = await database.fetch_all("""
+        SELECT description FROM activity_log 
+        WHERE description LIKE :match AND action_type IN ('CHECKOUT', 'CHECKIN')
+    """, {"match": f"%[ITEM:{item_id}]%"})
+    
+    import re
+    total_out = 0
+    for log in logs:
+        desc = log['description']
+        out_match = re.search(r"\[OUT:(\d+)\]", desc)
+        in_match = re.search(r"\[IN:(\d+)\]", desc)
+        lost_match = re.search(r"\[LOST:(\d+)\]", desc)
+        
+        if out_match: total_out += int(out_match.group(1))
+        if in_match: total_out -= int(in_match.group(1))
+        if lost_match: total_out -= int(lost_match.group(1))
+        
+    return {"outstanding": max(0, total_out)}
+
 @app.post("/checkout-item/{item_id}")
 async def checkout_item(item_id: int, amount: int = Form(...), zoom: int = None, email: str = Depends(get_current_user_email)):
-    # FIX: Added bin_id to the SELECT statement
     item = await database.fetch_one("""
         SELECT i.name, i.quantity, i.bin_id, b.household_id FROM items i 
         JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
     """, {"iid": item_id})
     
-    if not item: raise HTTPException(status_code=404)
+    if not item or item['quantity'] < amount:
+        raise HTTPException(status_code=400, detail="Insufficient stock for checkout")
     
-    new_qty = max(0, item['quantity'] - amount)
+    # 1. Reduce inventory count
+    new_qty = item['quantity'] - amount
     await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
     
-    await log_activity(email, item['household_id'], "CHECKOUT", f"Checked out {amount}x '{item['name']}'. Remaining: {new_qty}")
+    # 2. Log with a searchable 'REF_ID' for the check-in logic
+    # Format: [OUT:5][ITEM:102] Checked out 5x 'SATA Cable'
+    log_msg = f"[OUT:{amount}][ITEM:{item_id}] Checked out {amount}x '{item['name']}'"
+    await log_activity(email, item['household_id'], "CHECKOUT", log_msg)
     
     url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
     return RedirectResponse(url=url, status_code=303)
 
-@app.get("/get-last-checkout/{item_id}")
-async def get_last_checkout(item_id: int):
-    # Parses the activity log for the last 'CHECKOUT' for this item
-    log = await database.fetch_one("""
-        SELECT description FROM activity_log 
-        WHERE description LIKE :match AND action_type = 'CHECKOUT'
-        ORDER BY created_at DESC LIMIT 1
-    """, {"match": f"%item_id:{item_id}%"})
-    
-    # We'll need to update the checkout logger to include the ID for easier parsing
-    import re
-    amount = 0
-    if log:
-        match = re.search(r"Checked out (\d+)", log['description'])
-        if match: amount = int(match.group(1))
-    return {"amount": amount}
-
 @app.post("/checkin-item/{item_id}")
-async def checkin_item(
-    item_id: int, 
-    amount: int = Form(...), 
-    consumed: int = Form(0), 
-    zoom: int = None, # Added zoom parameter
-    email: str = Depends(get_current_user_email)
-):
+async def checkin_item(item_id: int, amount: int = Form(...), consumed: int = Form(0), zoom: int = None, email: str = Depends(get_current_user_email)):
     item = await database.fetch_one("""
         SELECT i.name, i.quantity, i.bin_id, b.household_id FROM items i 
         JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
     """, {"iid": item_id})
     
-    if not item: raise HTTPException(status_code=404)
-    
+    # 1. Increase inventory by the amount returned
     new_qty = item['quantity'] + amount
     await database.execute("UPDATE items SET quantity = :q WHERE id = :iid", {"q": new_qty, "iid": item_id})
     
-    msg = f"Checked in {amount}x '{item['name']}'."
-    if consumed > 0: msg += f" {consumed}x marked as consumed/lost."
+    # 2. Log the transaction, noting partial returns vs consumption
+    # We do NOT add 'consumed' back to inventory, effectively lowering the total count
+    msg = f"[IN:{amount}][LOST:{consumed}][ITEM:{item_id}] Returned {amount}x '{item['name']}'"
+    if consumed > 0:
+        msg += f" ({consumed}x marked as consumed/lost)"
+        
+    await log_activity(email, item['household_id'], "CHECKIN", msg)
     
-    await log_activity(email, item['household_id'], "CHECKIN", f"{msg} (ref_item_id:{item_id})")
-    
-    # Maintain zoom and scroll to modified bin
     url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
     return RedirectResponse(url=url, status_code=303)
 
