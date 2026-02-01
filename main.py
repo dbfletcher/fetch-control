@@ -547,7 +547,8 @@ async def add_item(
         f"Added {quantity}x '{name}' to bin '{check['bin_name']}'"
     )
 
-    return RedirectResponse(url=f"/bins/{check['household_id']}", status_code=303)
+    # After adding the part, redirect to the specific bin anchor
+    return RedirectResponse(url=f"/bins/{check['household_id']}#bin-{bin_id}", status_code=303)
 
 @app.post("/edit-item/{item_id}")
 async def edit_item(
@@ -657,7 +658,8 @@ async def update_qty(item_id: int, delta: int, email: str = Depends(get_current_
     action = "INCREASE" if delta > 0 else "DECREASE"
     await log_activity(email, item['household_id'], action, f"Adjusted '{item['name']}' qty by {delta}. New total: {new_qty}")
     
-    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
+    # Redirect back to the specific bin so it stays expanded
+    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
 
 @app.post("/checkout-item/{item_id}")
 async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depends(get_current_user_email)):
@@ -673,7 +675,8 @@ async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depe
     
     await log_activity(email, item['household_id'], "CHECKOUT", f"Checked out {amount}x '{item['name']}'. Remaining: {new_qty}")
     
-    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
+    # Redirect back to the specific bin so it stays expanded
+    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
 
 @app.get("/get-last-checkout/{item_id}")
 async def get_last_checkout(item_id: int):
@@ -709,7 +712,8 @@ async def checkin_item(item_id: int, amount: int = Form(...), consumed: int = Fo
         msg += f" {consumed}x marked as consumed/lost."
     
     await log_activity(email, item['household_id'], "CHECKIN", f"{msg} (ref_item_id:{item_id})")
-    return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
+    # Redirect back to the specific bin so it stays expanded
+    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
 
 @app.post("/move-item/{item_id}")
 async def move_item(
@@ -738,5 +742,5 @@ async def move_item(
         f"Moved '{item['name']}' to bin '{new_bin['name']}'"
     )
     
-    # Redirect back to the household view
-    return RedirectResponse(url=f"/bins/{new_bin['household_id']}", status_code=303)
+    # Redirect back to the specific bin so it stays expanded
+    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)

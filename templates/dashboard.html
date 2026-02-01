@@ -460,6 +460,29 @@
             document.body.appendChild(form);
             form.submit();
         }
+
+        window.addEventListener('DOMContentLoaded', (event) => {
+            // Check if there is a specific bin ID in the URL hash (e.g., #bin-123)
+            const hash = window.location.hash;
+            if (hash) {
+                const targetBin = document.querySelector(hash);
+                if (targetBin) {
+                    // Open the items list and all parent bin details
+                    const details = targetBin.querySelectorAll('details');
+                    details.forEach(d => d.open = true);
+
+                    // Recursively open all parent bins to ensure this one is visible
+                    let parent = targetBin.parentElement;
+                    while (parent) {
+                        if (parent.tagName === 'DETAILS') parent.open = true;
+                        parent = parent.parentElement;
+                    }
+                    
+                    // Smoothly scroll the Indiana lab inventory to the active bin
+                    targetBin.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
     </script>
 </body>
 </html>
