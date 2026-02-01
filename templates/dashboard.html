@@ -89,10 +89,10 @@
                 {% for item in bin_items %}
                     <div class="item-row" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
                         <div style="display: flex; flex-direction: column; gap: 4px; margin-right: 10px;">
-                            <form action="/update-qty/{{ item.id }}/1" method="post" style="margin:0;">
+                            <form action="/update-qty/{{ item.id }}/1{% if zoom_id %}?zoom={{ zoom_id }}{% endif %}" method="post" style="margin:0;">
                                 <button type="submit" style="font-size: 0.8em; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff;">+</button>
                             </form>
-                            <form action="/update-qty/{{ item.id }}/-1" method="post" style="margin:0;">
+                            <form action="/update-qty/{{ item.id }}/-1{% if zoom_id %}?zoom={{ zoom_id }}{% endif %}" method="post" style="margin:0;">
                                 <button type="submit" style="font-size: 0.8em; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff;">-</button>
                             </form>
                             <button onclick="promptCheckout({{ item.id }}, '{{ item.name }}', {{ item.quantity }})" 

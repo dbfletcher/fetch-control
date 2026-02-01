@@ -644,9 +644,10 @@ async def delete_item(item_id: int, email: str = Depends(get_current_user_email)
     return RedirectResponse(url=f"/bins/{item['household_id']}", status_code=303)
 
 @app.post("/update-qty/{item_id}/{delta}")
-async def update_qty(item_id: int, delta: int, email: str = Depends(get_current_user_email)):
+async def update_qty(item_id: int, delta: int, zoom: int = None, email: str = Depends(get_current_user_email)):
+    # FIX: Added bin_id to the SELECT statement
     item = await database.fetch_one("""
-        SELECT i.name, i.quantity, b.household_id FROM items i 
+        SELECT i.name, i.quantity, i.bin_id, b.household_id FROM items i 
         JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
     """, {"iid": item_id})
     
@@ -658,13 +659,15 @@ async def update_qty(item_id: int, delta: int, email: str = Depends(get_current_
     action = "INCREASE" if delta > 0 else "DECREASE"
     await log_activity(email, item['household_id'], action, f"Adjusted '{item['name']}' qty by {delta}. New total: {new_qty}")
     
-    # Redirect back to the specific bin so it stays expanded
-    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
+    # Maintain zoom state and anchor position
+    url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/checkout-item/{item_id}")
-async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depends(get_current_user_email)):
+async def checkout_item(item_id: int, amount: int = Form(...), zoom: int = None, email: str = Depends(get_current_user_email)):
+    # FIX: Added bin_id to the SELECT statement
     item = await database.fetch_one("""
-        SELECT i.name, i.quantity, b.household_id FROM items i 
+        SELECT i.name, i.quantity, i.bin_id, b.household_id FROM items i 
         JOIN bin b ON i.bin_id = b.id WHERE i.id = :iid
     """, {"iid": item_id})
     
@@ -675,8 +678,8 @@ async def checkout_item(item_id: int, amount: int = Form(...), email: str = Depe
     
     await log_activity(email, item['household_id'], "CHECKOUT", f"Checked out {amount}x '{item['name']}'. Remaining: {new_qty}")
     
-    # Redirect back to the specific bin so it stays expanded
-    return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
+    url = f"/bins/{item['household_id']}?zoom={zoom}#bin-{item['bin_id']}" if zoom else f"/bins/{item['household_id']}#bin-{item['bin_id']}"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.get("/get-last-checkout/{item_id}")
 async def get_last_checkout(item_id: int):
