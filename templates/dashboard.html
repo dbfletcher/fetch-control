@@ -430,37 +430,52 @@
         }
 
         async function promptCheckin(itemId, itemName) {
-            // 1. Fetch the actual outstanding balance from the new route
+            // 1. Fetch the actual outstanding balance from the backend
             const response = await fetch(`/get-outstanding/${itemId}`);
             const data = await response.json();
             const outstanding = data.outstanding || 0;
 
+            // 2. Safety check: If nothing is out, don't proceed
             if (outstanding <= 0) {
                 alert(`No ${itemName} units are currently checked out.`);
                 return;
             }
 
-            // 2. Ask for the return amount, showing the user the limit
+            // 3. Ask for the return amount, showing the user the limit
             const inAmount = parseInt(prompt(`How many ${itemName} are you returning? (${outstanding} currently out)`));
             
             if (isNaN(inAmount) || inAmount <= 0) return;
 
-            // 3. Prevent over-returning
+            // 4. Prevent returning more than what was checked out
             if (inAmount > outstanding) {
                 alert(`Error: You only have ${outstanding} units checked out. You cannot return ${inAmount}.`);
                 return;
             }
 
-            // 4. Handle partial returns and consumption logic
+            // 5. Handle partial returns and specific consumption
             let consumed = 0;
-            if (inAmount < outstanding) {
-                const remaining = outstanding - inAmount;
-                if (confirm(`${inAmount} is less than the ${outstanding} checked out. Have the remaining ${remaining} been consumed/lost?`)) {
-                    consumed = remaining;
+            const remaining = outstanding - inAmount;
+
+            if (remaining > 0) {
+                // Instead of a binary confirm, ask for a specific number
+                const consumedInput = prompt(
+                    `${inAmount} is less than the ${outstanding} checked out. \n\n` +
+                    `How many of the remaining ${remaining} units were consumed or lost? \n` +
+                    `(Enter 0 if they are still checked out)`, 
+                    remaining // Default to the full remainder for convenience
+                );
+
+                if (consumedInput !== null) {
+                    consumed = parseInt(consumedInput) || 0;
+                    // Validate that we don't "consume" more than the remainder
+                    if (consumed > remaining) {
+                        alert(`Error: You can't consume ${consumed} when only ${remaining} were left.`);
+                        return;
+                    }
                 }
             }
 
-            // 5. Submit with zoom and anchor persistence
+            // 6. Build and submit the hidden form with zoom persistence
             const zoomId = new URLSearchParams(window.location.search).get('zoom');
             const form = document.createElement('form');
             form.method = 'POST';
@@ -469,13 +484,15 @@
             const fields = { 'amount': inAmount, 'consumed': consumed };
             for (const [key, value] of Object.entries(fields)) {
                 const input = document.createElement('input');
-                input.type = 'hidden'; input.name = key; input.value = value;
+                input.type = 'hidden'; 
+                input.name = key; 
+                input.value = value;
                 form.appendChild(input);
             }
+            
             document.body.appendChild(form);
             form.submit();
         }
-
         window.addEventListener('DOMContentLoaded', (event) => {
             // Check if there is a specific bin ID in the URL hash (e.g., #bin-123)
             const hash = window.location.hash;
