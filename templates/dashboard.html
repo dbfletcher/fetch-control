@@ -122,6 +122,7 @@
                         <div style="flex-grow:1; margin-left:15px;">
                             <div style="display:flex; justify-content:space-between;">
                                 <span class="clickable" onclick="document.getElementById('ep-{{ item.id }}').style.display='block'" style="font-weight:600; font-size: {{ '1em' if level == 0 else '0.9em' }};">{{ item.quantity }}x {{ item.name }}</span>
+                                <span id="out-badge-{{ item.id }}" style="display:none; background: var(--danger); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; white-space: nowrap;"> 0 OUT  </span>
                                 <form action="/delete-item/{{ item.id }}" method="post" onsubmit="return confirm('Delete part?')">
                                     <button type="submit" style="background:none; border:none; cursor:pointer; opacity:0.3;">🗑️</button>
                                 </form>
@@ -515,6 +516,32 @@
                 }
             }
         });
+
+        async function updateOutstandingBadges() {
+            // Select all badge placeholders in the current view
+            const badges = document.querySelectorAll('[id^="out-badge-"]');
+            
+            for (const badge of badges) {
+                const itemId = badge.id.split('-').pop();
+                
+                try {
+                    const response = await fetch(`/get-outstanding/${itemId}`);
+                    const data = await response.json();
+                    
+                    if (data.outstanding > 0) {
+                        badge.innerText = `${data.outstanding} OUT`;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error("Error fetching badge data:", e);
+                }
+            }
+        }
+
+        // Run the badge update when the page loads
+        window.addEventListener('DOMContentLoaded', updateOutstandingBadges);
     </script>
 </body>
 </html>
