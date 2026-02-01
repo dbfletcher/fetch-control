@@ -472,36 +472,21 @@ async def delete_location_photo(bin_id: int, email: str = Depends(get_current_us
     return RedirectResponse(url=f"/bins/{res['household_id']}", status_code=303)
 
 @app.post("/delete-bin/{bin_id}")
-async def delete_bin(bin_id: int, email: str = Depends(get_current_user_email)):
-    # 1. Fetch bin info and household context
+async def delete_bin(bin_id: int, zoom: int = None, email: str = Depends(get_current_user_email)):
     bin_info = await database.fetch_one("SELECT name, household_id FROM bin WHERE id = :bid", {"bid": bin_id})
-    if not bin_info:
-        raise HTTPException(status_code=404)
-
-    # 2. Find or create the 'Unassigned' bin for this household
-    unassigned = await database.fetch_one(
-        "SELECT id FROM bin WHERE household_id = :hid AND name = 'Unassigned'", 
-        {"hid": bin_info['household_id']}
-    )
+    if not bin_info: raise HTTPException(status_code=404)
     
-    # 3. Move items to Unassigned and then delete the bin
+    unassigned = await database.fetch_one("SELECT id FROM bin WHERE household_id = :hid AND name = 'Unassigned'", {"hid": bin_info['household_id']})
     if unassigned:
-        await database.execute(
-            "UPDATE items SET bin_id = :unid WHERE bin_id = :bid", 
-            {"unid": unassigned['id'], "bid": bin_id}
-        )
-
+        await database.execute("UPDATE items SET bin_id = :unid WHERE bin_id = :bid", {"unid": unassigned['id'], "bid": bin_id})
+    
     await database.execute("DELETE FROM bin WHERE id = :bid", {"bid": bin_id})
-
-    # 4. Log the "Retirement"
-    await log_activity(
-        email, 
-        bin_info['household_id'], 
-        "DELETE", 
-        f"Retired bin '{bin_info['name']}'. All contents moved to 'Unassigned' bin."
-    )
-
-    return RedirectResponse(url=f"/bins/{bin_info['household_id']}", status_code=303)
+    await log_activity(email, bin_info['household_id'], "DELETE", f"Retired bin '{bin_info['name']}'. Items moved to Unassigned.")
+    
+    # Redirect to 'Unassigned' anchor to show where items went
+    anchor = f"#bin-{unassigned['id']}" if unassigned else ""
+    url = f"/bins/{bin_info['household_id']}?zoom={zoom}{anchor}" if zoom else f"/bins/{bin_info['household_id']}{anchor}"
+    return RedirectResponse(url=url, status_code=303)
 
 # --- Item (Part) Management ---
 
@@ -737,3 +722,28 @@ async def move_item(
     
     # Redirect back to the specific bin so it stays expanded
     return RedirectResponse(url=f"/bins/{item['household_id']}#bin-{item['bin_id']}", status_code=303)
+@app.post("/delete-item-photo/{item_id}")
+async def delete_item_photo(item_id: int, zoom: int = None, email: str = Depends(get_current_user_email)):
+    # 1. Fetch household and bin context before we update anything
+    res = await database.fetch_one("""
+        SELECT b.household_id, i.bin_id, i.high_res_image 
+        FROM items i JOIN bin b ON i.bin_id = b.id 
+        WHERE i.id = :iid
+    """, {"iid": item_id})
+    
+    if not res:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    # 2. Delete physical files from HIGHRES and LOWRES folders
+    if res['high_res_image']:
+        for folder in [HIGHRES_DIR, LOWRES_DIR]:
+            path = os.path.join(folder, res['high_res_image'])
+            if os.path.exists(path):
+                os.remove(path)
+                
+    # 3. Update the database to clear the image reference
+    await database.execute("UPDATE items SET high_res_image = NULL WHERE id = :iid", {"iid": item_id})
+    
+    # 4. Redirect with Zoom and Anchor persistence
+    url = f"/bins/{res['household_id']}?zoom={zoom}#bin-{res['bin_id']}" if zoom else f"/bins/{res['household_id']}#bin-{res['bin_id']}"
+    return RedirectResponse(url=url, status_code=303)
