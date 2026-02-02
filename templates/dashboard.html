@@ -36,12 +36,13 @@
                     {% endif %}
                 </div>
 
+                {# Mobile-friendly Zoom Button #}
+                <a href="?zoom={{ bin.id }}" title="Zoom into this bin" style="text-decoration:none; font-size: 1.1em; padding: 4px 8px; background: #eee; border-radius: 6px; border: 1px solid #ccc; color: #333; margin-left: 10px;">🔍</a>
+
+
                 <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; flex-grow: 1; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
                     {{ bin.name }}
                 </h3>
-
-                {# Mobile-friendly Zoom Button #}
-                <a href="?zoom={{ bin.id }}" title="Zoom into this bin" style="text-decoration:none; font-size: 1.1em; padding: 4px 8px; background: #eee; border-radius: 6px; border: 1px solid #ccc; color: #333; margin-left: 10px;">🔍</a>
             </div>
 
             <div id="eb-{{ bin.id }}" style="display:none; margin-top:15px; background:#f9f9f9; padding:15px; border-radius:10px; border:1px solid #ddd;">
