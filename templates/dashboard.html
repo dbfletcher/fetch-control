@@ -6,7 +6,7 @@
     {% set thumb_size = 50 - (level * 5) if level < 4 else 30 %}
     {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
 
-    <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 6px); border-left: {{ '3px solid var(--primary)' if level > 0 else 'none' }}; outline: 1px solid white; margin-bottom: 25px; scroll-margin-top: 80px; box-shadow: -2px 0 0 white;">
+    <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 2px); border-left: {{ '3px solid var(--primary)' if level > 0 else 'none' }}; outline: 1px solid white; margin-bottom: 25px; scroll-margin-top: 80px; box-shadow: -2px 0 0 white;">
         
         <div style="padding: 20px; border-top: 5px solid var(--primary);">
             {% if path %}
