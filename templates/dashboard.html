@@ -18,7 +18,7 @@
             </div>
             {% endif %}
 
-            <div style="display:flex; align-items:center; gap:20px; margin-bottom: 10px;">
+            <div style="display:flex; align-items:center; gap:5px; margin-bottom: 10px;">
                 {# Small Bin Image to the left of the title #}
                 <div style="width: 80px; height: 80px; flex-shrink: 0; background: #000; border-radius: 8px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #ddd;">
                     {% if bin.location_image %}
@@ -37,7 +37,7 @@
                 </div>
 
                 {# Mobile-friendly Zoom Button #}
-                <a href="?zoom={{ bin.id }}" title="Zoom into this bin" style="text-decoration:none; font-size: 1.1em; padding: 4px 8px; background: #eee; border-radius: 6px; border: 1px solid #ccc; color: #333; margin-left: 10px;">🔍</a>
+                <a href="?zoom={{ bin.id }}" title="Zoom into this bin" style="text-decoration:none; font-size: 1.1em; padding: 4px 6px; background: #eee; border-radius: 6px; border: 1px solid #ccc; color: #333; margin-left: 10px;">🔍</a>
 
 
                 <h3 class="clickable" onclick="document.getElementById('eb-{{ bin.id }}').style.display='block'" style="margin: 0; flex-grow: 1; font-size: {{ '1.17em' if level == 0 else '1.1em' }};">
