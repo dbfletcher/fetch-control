@@ -69,7 +69,7 @@
                 {% set children = bins | selectattr("parent_bin_id", "equalto", bin.id) | list %}
                 {% if children %}
                     {# Added the bin-hierarchy-details class to distinguish it from forms #}
-                    <details class="bin-hierarchy-details" style="margin-bottom: 10px; border-left: 1px solid #eee; padding-left: 8px;">
+                    <details class="bin-hierarchy-details" style="margin-bottom: 10px; border-left: 1px solid #eee; padding-left: 2px;">
                         <summary style="cursor: pointer; color: var(--primary); font-size: 0.9em; font-weight: bold; outline: none; margin-bottom: 10px;">
                             📂 Show {{ children | length }} Sub-Bins in {{ bin.name }}
                         </summary>
