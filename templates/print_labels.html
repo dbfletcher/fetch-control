@@ -7,28 +7,49 @@
         body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
         .no-print { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
         .bin-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 15px; }
-        
-        /* Print Layout */
+
+        /* Print Layout Configuration */
         #print-area { display: none; }
+
         @media print {
-            .no-print { display: none; }
-            #print-area { 
-                display: grid; 
-                grid-template-columns: repeat(var(--cols, 3), 1fr); 
-                gap: 10px; 
-                width: 8.5in; 
-                margin: 0 auto;
+            @page {
+                margin: 0.3in; /* Reclaims top and bottom whitespace */
             }
-            .label-card { 
-                border: 1px dashed #ccc; 
-                padding: 10px; 
-                text-align: center; 
-                page-break-inside: avoid; 
-                height: 2in; /* Adjustable for 10-16 per page */
+
+            .no-print { display: none; }
+
+            #print-area {
+                display: grid;
+                /* FIX: Uses the dropdown variable, defaulting to 4 if not set */
+                grid-template-columns: repeat(var(--cols, 4), 1fr); 
+                gap: 5px; 
+                width: 100%;
+                margin: 0;
+            }
+
+            .label-card {
+                border: 1px dashed #ccc;
+                padding: 5px; 
+                text-align: center;
+                page-break-inside: avoid;
+                /* REDUCED: 1.8in ensures 5 rows fit on 11in Letter paper */
+                height: 1.8in; 
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                overflow: hidden; 
+            }
+
+            /* Prevent the QR code from pushing the label height out */
+            .label-card img, .label-card div canvas {
+                max-height: 1.1in !important; 
+                width: auto !important;
+            }
+
+            .label-card div {
+                margin: 2px 0;
+                line-height: 1.1;
             }
         }
         .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
@@ -43,8 +64,8 @@
         <label><strong>Labels per Row:</strong></label>
         <select id="colConfig" onchange="document.getElementById('print-area').style.setProperty('--cols', this.value)">
             <option value="2">2 (Large)</option>
-            <option value="3" selected>3 (Standard - ~12 per page)</option>
-            <option value="4">4 (Small - ~16 per page)</option>
+            <option value="3">3 (Standard - ~15 per page)</option>
+            <option value="4" selected>4 (Small - ~20 per page)</option>
         </select>
 
         <div class="bin-selector">
