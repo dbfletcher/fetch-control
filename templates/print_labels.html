@@ -35,35 +35,33 @@
         /* 2. Dynamic Print Configuration */
         #print-area { 
             display: none; 
-            /* Variables controlled by updateLabelSize function */
+            /* Defaulting to Medium view */
             --cols: 3; 
-            --card-height: 2.5in; 
-            --qr-size: 1.6in;
-            --font-size: 14px;
-            --grid-gap: 10px;  /* New variable to reclaim space */
-            --card-pad: 10px;  /* New variable to reclaim space */
+            --card-height: 2.3in; 
+            --qr-size: 1.4in;
+            --font-size: 13px;
+            --grid-gap: 8px;
+            --card-pad: 8px;
         }
 
         @media print {
             @page { 
-                margin: 0.3in; 
+                margin: 0.3in; /* Reclaims top/bottom workspace */
             }
 
-            .no-print { 
-                display: none; 
-            }
+            .no-print { display: none; }
 
             #print-area {
                 display: grid;
                 grid-template-columns: repeat(var(--cols), 1fr);
-                gap: var(--grid-gap); /* Uses dynamic gap */
+                gap: var(--grid-gap); 
                 width: 100%;
                 margin: 0;
             }
 
             .label-card {
                 border: 1px dashed #ccc;
-                padding: var(--card-pad); /* Uses dynamic padding */
+                padding: var(--card-pad);
                 text-align: center;
                 page-break-inside: avoid;
                 height: var(--card-height); 
@@ -72,7 +70,8 @@
                 align-items: center;
                 justify-content: center;
                 overflow: hidden;
-                box-sizing: border-box; /* Ensures padding doesn't add to height */
+                /* CRITICAL: Ensures padding is included in the height calculation */
+                box-sizing: border-box; 
             }
 
             .label-card div[id^="qr-"] {
@@ -81,7 +80,7 @@
                 align-items: center;
                 height: var(--qr-size);
                 width: var(--qr-size);
-                margin: 2px 0; /* Tightened margin */
+                margin: 2px 0;
             }
 
             .label-card img, .label-card canvas {
@@ -106,7 +105,6 @@
             }
         }
 
-        /* 4. Button & Utility Styles */
         .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: #3498db; color: white; }
         select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-left: 10px; }
@@ -188,8 +186,11 @@
         function updateLabelSize(size) {
             const area = document.getElementById('print-area');
             const configs = {
-                'large':  { cols: 2, height: '4.8in', qr: '3.5in', gap: '10px', pad: '10px', font: '18px' },
-                'medium': { cols: 3, height: '2.5in', qr: '1.6in', gap: '10px', pad: '10px', font: '14px' },
+                // Fits 2 rows perfectly (4 labels)
+                'large':  { cols: 2, height: '4.8in', qr: '3.3in', gap: '10px', pad: '10px', font: '18px' },
+                // Fits 4 rows perfectly (12 labels)
+                'medium': { cols: 3, height: '2.3in', qr: '1.4in', gap: '8px', pad: '8px', font: '13px' },
+                // Fits 5 rows perfectly (20 labels)
                 'small':  { cols: 4, height: '1.8in', qr: '1.1in', gap: '5px', pad: '5px', font: '11px' }
             };
             
@@ -197,8 +198,8 @@
             area.style.setProperty('--cols', c.cols);
             area.style.setProperty('--card-height', c.height);
             area.style.setProperty('--qr-size', c.qr);
-            area.style.setProperty('--grid-gap', c.gap); // Updates the gap
-            area.style.setProperty('--card-pad', c.pad); // Updates the padding
+            area.style.setProperty('--grid-gap', c.gap);
+            area.style.setProperty('--card-pad', c.pad);
             area.style.setProperty('--font-size', c.font);
         }
     </script>
