@@ -4,7 +4,7 @@
     <title>Batch Print Labels - Project Fetch</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* 1. Base UI Styles (Visible on screen) */
+        /* 1. Base UI Styles (Screen View) */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             padding: 20px; 
@@ -35,7 +35,7 @@
         /* 2. Dynamic Print Configuration */
         #print-area { 
             display: none; 
-            /* Defaulting to Medium (3-column) view */
+            /* Variables controlled by the JavaScript updateLabelSize function */
             --cols: 3; 
             --card-height: 2.5in; 
             --qr-size: 1.6in;
@@ -54,7 +54,7 @@
 
             #print-area {
                 display: grid;
-                /* Grid layout updates dynamically via JavaScript */
+                /* Grid layout updates based on selected label size */
                 grid-template-columns: repeat(var(--cols), 1fr);
                 gap: 10px; 
                 width: 100%;
@@ -66,7 +66,7 @@
                 padding: 10px;
                 text-align: center;
                 page-break-inside: avoid;
-                /* Dynamic height based on selection */
+                /* Height scales to fill the page based on row count */
                 height: var(--card-height); 
                 display: flex;
                 flex-direction: column;
@@ -75,10 +75,22 @@
                 overflow: hidden;
             }
 
-            /* Forces the QR code to scale with the label size */
-            .label-card img, .label-card div canvas {
-                max-height: var(--qr-size) !important;
+            /* 3. QR Container and Image Scaling Logic */
+            .label-card div[id^="qr-"] {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: var(--qr-size);
+                width: var(--qr-size);
+                margin: 5px 0;
+            }
+
+            /* Ensures the QR code canvas/image fills the container */
+            .label-card img, .label-card canvas {
+                max-height: 100% !important;
+                max-width: 100% !important;
                 width: auto !important;
+                height: auto !important;
             }
 
             .label-card .bin-name {
@@ -86,6 +98,7 @@
                 font-size: var(--font-size);
                 margin-bottom: 5px;
                 line-height: 1.2;
+                word-wrap: break-word;
             }
 
             .label-card .footer-text {
@@ -95,23 +108,18 @@
             }
         }
 
-        /* 3. Button & Utility Styles */
+        /* 4. Button & Utility Styles */
         .btn { 
             padding: 10px 20px; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer; 
             font-weight: bold; 
-            transition: background 0.2s;
         }
         
         .btn-primary { 
             background: #3498db; 
             color: white; 
-        }
-        
-        .btn-primary:hover { 
-            background: #2980b9; 
         }
 
         select {
@@ -157,21 +165,38 @@
             const area = document.getElementById('print-area');
             area.innerHTML = '';
             const selected = document.querySelectorAll('.bin-check:checked');
-            
+
             if (selected.length === 0) return alert("Select at least one bin.");
+
+            // 1. Determine the QR pixel size based on the current dropdown selection
+            const sizeMode = document.getElementById('sizeConfig').value;
+            const qrPixelSizes = {
+                'large': 300,  // Approx 3.5in at 96dpi
+                'medium': 160, // Approx 1.6in
+                'small': 110   // Approx 1.1in
+            };
+            const qrSize = qrPixelSizes[sizeMode] || 150;
 
             selected.forEach(cb => {
                 const id = cb.dataset.id;
                 const name = cb.dataset.name;
                 const label = document.createElement('div');
                 label.className = 'label-card';
-                label.innerHTML = `<div style="font-weight:bold; font-size:14px; margin-bottom:5px;">${name}</div><div id="qr-${id}"></div><div style="font-size:10px; color:#666; margin-top:5px;">Project Fetch</div>`;
-                area.appendChild(label);
                 
+                // 2. Added 'bin-name' and 'footer-text' classes for the new CSS styles
+                label.innerHTML = `
+                    <div class="bin-name">${name}</div>
+                    <div id="qr-${id}"></div>
+                    <div class="footer-text">Project Fetch</div>
+                `;
+                area.appendChild(label);
+
+                // 3. Generate QR code with the dynamic size
                 new QRCode(document.getElementById(`qr-${id}`), {
                     text: `${window.location.origin}/bins/view/${id}`,
-                    width: 100,
-                    height: 100
+                    width: qrSize,
+                    height: qrSize,
+                    correctLevel: QRCode.CorrectLevel.H // Higher error correction for larger prints
                 });
             });
 
