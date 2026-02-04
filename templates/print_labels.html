@@ -35,15 +35,16 @@
         /* 2. Dynamic Print Configuration */
         #print-area { 
             display: none; 
-            /* Variables controlled by the JavaScript updateLabelSize function */
+            /* Variables controlled by updateLabelSize function */
             --cols: 3; 
             --card-height: 2.5in; 
             --qr-size: 1.6in;
             --font-size: 14px;
+            --grid-gap: 10px;  /* New variable to reclaim space */
+            --card-pad: 10px;  /* New variable to reclaim space */
         }
 
         @media print {
-            /* Overrides browser defaults to maximize printable area */
             @page { 
                 margin: 0.3in; 
             }
@@ -54,38 +55,35 @@
 
             #print-area {
                 display: grid;
-                /* Grid layout updates based on selected label size */
                 grid-template-columns: repeat(var(--cols), 1fr);
-                gap: 10px; 
+                gap: var(--grid-gap); /* Uses dynamic gap */
                 width: 100%;
                 margin: 0;
             }
 
             .label-card {
                 border: 1px dashed #ccc;
-                padding: 10px;
+                padding: var(--card-pad); /* Uses dynamic padding */
                 text-align: center;
                 page-break-inside: avoid;
-                /* Height scales to fill the page based on row count */
                 height: var(--card-height); 
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 overflow: hidden;
+                box-sizing: border-box; /* Ensures padding doesn't add to height */
             }
 
-            /* 3. QR Container and Image Scaling Logic */
             .label-card div[id^="qr-"] {
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 height: var(--qr-size);
                 width: var(--qr-size);
-                margin: 5px 0;
+                margin: 2px 0; /* Tightened margin */
             }
 
-            /* Ensures the QR code canvas/image fills the container */
             .label-card img, .label-card canvas {
                 max-height: 100% !important;
                 max-width: 100% !important;
@@ -96,38 +94,22 @@
             .label-card .bin-name {
                 font-weight: bold;
                 font-size: var(--font-size);
-                margin-bottom: 5px;
-                line-height: 1.2;
+                margin-bottom: 2px;
+                line-height: 1.1;
                 word-wrap: break-word;
             }
 
             .label-card .footer-text {
-                font-size: 10px; 
+                font-size: 9px; 
                 color: #666; 
-                margin-top: 5px;
+                margin-top: 2px;
             }
         }
 
         /* 4. Button & Utility Styles */
-        .btn { 
-            padding: 10px 20px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-weight: bold; 
-        }
-        
-        .btn-primary { 
-            background: #3498db; 
-            color: white; 
-        }
-
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            margin-left: 10px;
-        }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-primary { background: #3498db; color: white; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -206,15 +188,18 @@
         function updateLabelSize(size) {
             const area = document.getElementById('print-area');
             const configs = {
-                'large':  { cols: 2, height: '4.8in', qr: '3.5in' },
-                'medium': { cols: 3, height: '2.5in', qr: '1.6in' },
-                'small':  { cols: 4, height: '1.8in', qr: '1.1in' }
+                'large':  { cols: 2, height: '4.8in', qr: '3.5in', gap: '10px', pad: '10px', font: '18px' },
+                'medium': { cols: 3, height: '2.5in', qr: '1.6in', gap: '10px', pad: '10px', font: '14px' },
+                'small':  { cols: 4, height: '1.8in', qr: '1.1in', gap: '5px', pad: '5px', font: '11px' }
             };
             
             const c = configs[size];
             area.style.setProperty('--cols', c.cols);
             area.style.setProperty('--card-height', c.height);
             area.style.setProperty('--qr-size', c.qr);
+            area.style.setProperty('--grid-gap', c.gap); // Updates the gap
+            area.style.setProperty('--card-pad', c.pad); // Updates the padding
+            area.style.setProperty('--font-size', c.font);
         }
     </script>
 </body>
