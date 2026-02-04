@@ -260,8 +260,9 @@ async def get_bins(
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
-    # 5. Calculate the total inventory value
+    # 5. Calculate total inventory value and total unit count
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
+    total_units = sum(item['quantity'] for item in items) # New: Sum of all quantities
 
     # 6. Retrieve version info from the environment
     version = os.getenv("FETCH_VERSION", "Unknown")
@@ -276,6 +277,7 @@ async def get_bins(
         "current_household_id": household_id,
         "household_name": household_name,
         "total_value": total_value,
+        "total_units": total_units, # Pass this to the header
         "zoom_id": zoom,  # Essential for triggering the template filter
         "error": request.query_params.get("error")
     })

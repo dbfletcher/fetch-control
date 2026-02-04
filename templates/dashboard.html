@@ -282,9 +282,18 @@
                 </button>
             </div>
 
-            <div style="margin-left:auto; background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold;">
-                Total: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
+            <div style="margin-left:auto; display: flex; gap: 10px;">
+                {# Total Units Count Badge #}
+                <div style="background:var(--primary); color:white; padding:6px 15px; border-radius:25px; font-weight:bold; font-size: 0.9em;">
+                    Units: {{ "{:,}".format(total_units) if total_units else "0" }}
+                </div>
+                
+                {# Total Value Badge #}
+                <div style="background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold; font-size: 0.9em;">
+                    Value: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
+                </div>
             </div>
+
         </div>
 
         <div style="padding: 15px 25px 0 25px; max-width: 800px; margin: 0 auto;">
