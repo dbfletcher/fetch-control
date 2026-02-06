@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile, Form, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -754,57 +754,65 @@ async def delete_item_photo(item_id: int, zoom: int = None, email: str = Depends
     url = f"/bins/{res['household_id']}?zoom={zoom}#bin-{res['bin_id']}" if zoom else f"/bins/{res['household_id']}#bin-{res['bin_id']}"
     return RedirectResponse(url=url, status_code=303)
 
+# --- Corrected Admin CRUD Routes ---
+
 @app.post("/admin/add-household")
 async def add_household(name: str = Form(...), return_to: int = Query(None)):
     """Creates a new household entry in the database."""
-    with get_db() as db:
-        db.execute("INSERT INTO households (name) VALUES (?)", (name,))
-        db.commit()
-    # Redirect back to admin, preserving the return context
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    query = "INSERT INTO households (name) VALUES (:name)"
+    await database.execute(query, {"name": name})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/edit-household/{hh_id}")
 async def edit_household(hh_id: int, name: str = Form(...), return_to: int = Query(None)):
     """Updates an existing household's name."""
-    with get_db() as db:
-        db.execute("UPDATE households SET name = ? WHERE id = ?", (name, hh_id))
-        db.commit()
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    query = "UPDATE households SET name = :name WHERE id = :id"
+    await database.execute(query, {"name": name, "id": hh_id})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/delete-household/{hh_id}")
 async def delete_household(hh_id: int, return_to: int = Query(None)):
-    """Deletes a household if it is empty (no associated bins)."""
-    with get_db() as db:
-        try:
-            db.execute("DELETE FROM households WHERE id = ?", (hh_id,))
-            db.commit()
-        except sqlite3.IntegrityError:
-            # Prevents deletion if bins still exist due to foreign keys
-            return "Error: Cannot delete household that still contains bins."
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    """Deletes a household."""
+    try:
+        query = "DELETE FROM households WHERE id = :id"
+        await database.execute(query, {"id": hh_id})
+    except Exception:
+        # MySQL/MariaDB will block this if bins exist
+        raise HTTPException(status_code=400, detail="Cannot delete household that still contains bins.")
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/add-user")
 async def add_user(email: str = Form(...), return_to: int = Query(None)):
     """Adds a new user to the system."""
-    with get_db() as db:
-        db.execute("INSERT INTO users (email) VALUES (?)", (email,))
-        db.commit()
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    query = "INSERT INTO users (email) VALUES (:email)"
+    await database.execute(query, {"email": email})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/edit-user/{user_id}")
 async def edit_user(user_id: int, email: str = Form(...), return_to: int = Query(None)):
     """Modifies a user's email address."""
-    with get_db() as db:
-        db.execute("UPDATE users SET email = ? WHERE id = ?", (email, user_id))
-        db.commit()
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    query = "UPDATE users SET email = :email WHERE id = :id"
+    await database.execute(query, {"email": email, "id": user_id})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
 
 @app.post("/admin/delete-user/{user_id}")
 async def delete_user(user_id: int, return_to: int = Query(None)):
     """Removes a user and their associated access permissions."""
-    with get_db() as db:
-        # Cascade delete is usually handled by DB, but we ensure cleanup
-        db.execute("DELETE FROM user_households WHERE user_id = ?", (user_id,))
-        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        db.commit()
-    return RedirectResponse(url=f"/admin{f'?return_to={return_to}' if return_to else ''}", status_code=303)
+    # 1. Clean up memberships first (Access Map)
+    await database.execute("DELETE FROM memberships WHERE user_id = :uid", {"uid": user_id})
+    
+    # 2. Delete the actual user
+    await database.execute("DELETE FROM users WHERE id = :uid", {"uid": user_id})
+    
+    url = f"/admin?return_to={return_to}" if return_to else "/admin"
+    return RedirectResponse(url=url, status_code=303)
