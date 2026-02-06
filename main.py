@@ -111,12 +111,13 @@ async def admin_dashboard(
         households = await database.fetch_all("SELECT id, name FROM households")
 
         # Fetch memberships (Access Map)
+        # Updated memberships query with User -> Household sorting
         memberships = await database.fetch_all("""
             SELECT m.id as membership_id, u.email, h.name as household_name, m.created_at
             FROM memberships m
             JOIN users u ON m.user_id = u.id
             JOIN households h ON m.household_id = h.id
-            ORDER BY m.created_at DESC
+            ORDER BY u.email ASC, h.name ASC
         """)
 
         # Fetch the 20 most recent actions for the Activity Feed
