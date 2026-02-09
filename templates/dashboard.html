@@ -377,27 +377,30 @@
             const includeMetadata = document.getElementById('searchMetadata').checked;
             const cards = Array.from(document.getElementsByClassName('bin-card'));
 
-            // 1. Reset everything first
-            if (input !== "") {
-                cards.forEach(card => card.style.display = "none");
-            } else {
+            // 1. Reset View
+            if (input === "") {
                 cards.forEach(card => {
                     card.style.display = "";
-                    // Close everything when search is cleared for a clean view
+                    // Close all details to reset view
                     card.querySelectorAll('details').forEach(d => d.open = false);
                 });
                 return;
+            } else {
+                cards.forEach(card => card.style.display = "none");
             }
 
-            // 2. Search and propagate visibility/expansion upwards
+            // 2. Search Logic
             cards.forEach(card => {
+                // STRICT SELECTOR: Only find items belonging to THIS bin (ignore nested bins)
                 const itemRows = Array.from(card.querySelectorAll(':scope > div > .items-details .item-row'));
+                
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
                 const binNameMatch = binTitle.includes(input);
                 let hasItemMatch = false;
 
                 itemRows.forEach(row => {
                     let text = row.innerText.toLowerCase();
+                    // Metadata Search logic
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
                         if (editModal) {
@@ -405,28 +408,31 @@
                             text += " " + (editModal.querySelector('input[type="url"]')?.value.toLowerCase() || "");
                         }
                     }
+                    
                     const match = text.includes(input);
                     row.style.display = match ? "flex" : "none";
                     if (match) hasItemMatch = true;
                 });
 
+                // 3. Visibility & Expansion Logic
                 if (binNameMatch || hasItemMatch) {
                     card.style.display = ""; 
                     
-                    // Auto-expand the parts list if a part matched
+                    // STRICT EXPANSION: Only open THIS bin's parts list if it has a match
+                    // We use ':scope > div > .items-details' to avoid grabbing a child bin's list
                     if (hasItemMatch) {
-                        const itemsDetails = card.querySelector('.items-details');
+                        const itemsDetails = card.querySelector(':scope > div > .items-details');
                         if (itemsDetails) itemsDetails.open = true;
                     }
 
-                    // 3. RECURSIVE EXPANSION: Walk up to the root to open all parents
+                    // 4. Walk up the tree to open all Parent Bins
                     let parent = card.parentElement;
                     while (parent && parent.id !== 'mainContent') {
-                        // If we encounter a parent bin card, make sure it's visible
+                        // If parent is a bin card, show it
                         if (parent.classList.contains('bin-card')) {
                             parent.style.display = ""; 
                         }
-                        // If we encounter a details tag (sub-bin or item list), open it
+                        // If parent is a details folder (hierarchy or items), force it open
                         if (parent.tagName === 'DETAILS') {
                             parent.open = true;
                         }
@@ -435,6 +441,7 @@
                 }
             });
         }
+
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
