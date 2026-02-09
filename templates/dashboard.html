@@ -391,16 +391,27 @@
 
             // 2. Search Logic
             cards.forEach(card => {
-                // STRICT SELECTOR: Only find items belonging to THIS bin (ignore nested bins)
-                const itemRows = Array.from(card.querySelectorAll(':scope > div > .items-details .item-row'));
+                // STEP A: Robustly find the correct 'items-details' for THIS card
+                // We look at the first child (the padding div) and find the 'items-details' sibling directly
+                const wrapper = card.firstElementChild; 
+                let itemsDetails = null;
+                for (let child of wrapper.children) {
+                    if (child.classList.contains('items-details')) {
+                        itemsDetails = child;
+                        break;
+                    }
+                }
+                
+                // If this bin has no items section, skip item logic
+                const itemRows = itemsDetails ? Array.from(itemsDetails.querySelectorAll('.item-row')) : [];
                 
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
                 const binNameMatch = binTitle.includes(input);
                 let hasItemMatch = false;
 
+                // STEP B: Process Items
                 itemRows.forEach(row => {
                     let text = row.innerText.toLowerCase();
-                    // Metadata Search logic
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
                         if (editModal) {
@@ -410,29 +421,35 @@
                     }
                     
                     const match = text.includes(input);
-                    row.style.display = match ? "flex" : "none";
+                    
+                    // FIX: If the Bin Name matches, show ALL items inside it (Context)
+                    if (binNameMatch) {
+                        row.style.display = "flex"; 
+                    } else {
+                        row.style.display = match ? "flex" : "none";
+                    }
+                    
                     if (match) hasItemMatch = true;
                 });
 
-                // 3. Visibility & Expansion Logic
+                // STEP C: Visibility & Expansion
+                // We show the card if the Name matches OR if an Item matches
                 if (binNameMatch || hasItemMatch) {
                     card.style.display = ""; 
                     
-                    // STRICT EXPANSION: Only open THIS bin's parts list if it has a match
-                    // We use ':scope > div > .items-details' to avoid grabbing a child bin's list
-                    if (hasItemMatch) {
-                        const itemsDetails = card.querySelector(':scope > div > .items-details');
-                        if (itemsDetails) itemsDetails.open = true;
+                    // Expand items if:
+                    // 1. An item matched specifically
+                    // 2. OR The bin name matched (so we can see what's inside)
+                    if ((hasItemMatch || binNameMatch) && itemsDetails) {
+                        itemsDetails.open = true;
                     }
 
-                    // 4. Walk up the tree to open all Parent Bins
+                    // STEP D: Walk up to open Parent Bins
                     let parent = card.parentElement;
                     while (parent && parent.id !== 'mainContent') {
-                        // If parent is a bin card, show it
                         if (parent.classList.contains('bin-card')) {
                             parent.style.display = ""; 
                         }
-                        // If parent is a details folder (hierarchy or items), force it open
                         if (parent.tagName === 'DETAILS') {
                             parent.open = true;
                         }
@@ -441,7 +458,6 @@
                 }
             });
         }
-
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
