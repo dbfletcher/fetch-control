@@ -375,22 +375,32 @@
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
-            const cards = document.getElementsByClassName('bin-card');
+            const cards = Array.from(document.getElementsByClassName('bin-card'));
 
-            for (let card of cards) {
-                const itemRows = card.getElementsByClassName('item-row');
-                const itemsDetails = card.querySelector('.items-details');
-                const hierarchyDetails = card.querySelector('.bin-hierarchy-details');
-                
-                let binHasMatch = false;
+            // 1. Reset everything first
+            if (input !== "") {
+                cards.forEach(card => card.style.display = "none");
+            } else {
+                // Reset to default view when search is cleared
+                cards.forEach(card => {
+                    card.style.display = "";
+                    const itemsDetails = card.querySelector('.items-details');
+                    const hierarchyDetails = card.querySelector('.bin-hierarchy-details');
+                    if (itemsDetails) itemsDetails.open = false;
+                    if (hierarchyDetails) hierarchyDetails.open = false;
+                });
+                return;
+            }
+
+            // 2. Search and propagate visibility upwards
+            cards.forEach(card => {
+                const itemRows = Array.from(card.querySelectorAll(':scope > div > .items-details .item-row'));
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
                 const binNameMatch = binTitle.includes(input);
+                let hasItemMatch = false;
 
-                // Check individual items
-                for (let row of itemRows) {
+                itemRows.forEach(row => {
                     let text = row.innerText.toLowerCase();
-                    
-                    // Optional metadata search for specs/URLs
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
                         if (editModal) {
@@ -398,40 +408,35 @@
                             text += " " + (editModal.querySelector('input[type="url"]')?.value.toLowerCase() || "");
                         }
                     }
+                    const match = text.includes(input);
+                    row.style.display = match ? "flex" : "none";
+                    if (match) hasItemMatch = true;
+                });
 
-                    const itemMatch = text.includes(input);
-                    row.style.display = (input === "" || itemMatch) ? "flex" : "none";
-
-                    if (itemMatch && input !== "") {
-                        binHasMatch = true;
-                        // Auto-expand the parts list to show the result
+                // If the bin itself or its direct items match
+                if (binNameMatch || hasItemMatch) {
+                    card.style.display = ""; // Show this card
+                    
+                    // Auto-expand the items list if a part matched
+                    if (hasItemMatch) {
+                        const itemsDetails = card.querySelector('.items-details');
                         if (itemsDetails) itemsDetails.open = true;
                     }
-                }
 
-                // Final visibility logic: Show bin if it matches OR if any item inside matches
-                const shouldShowBin = input === "" || binNameMatch || binHasMatch;
-                card.style.display = shouldShowBin ? "" : "none";
-
-                // Recursively expand all parent containers to reveal the match
-                if (shouldShowBin && input !== "") {
+                    // CRITICAL: Walk up and show all parents
                     let parent = card.parentElement;
-                    while (parent) {
+                    while (parent && parent.id !== 'mainContent') {
+                        if (parent.classList.contains('bin-card')) {
+                            parent.style.display = ""; // Ensure parent is visible
+                        }
                         if (parent.tagName === 'DETAILS') {
-                            parent.open = true;
+                            parent.open = true; // Ensure hierarchy is open
                         }
                         parent = parent.parentElement;
                     }
                 }
-
-                // Reset state when search is cleared
-                if (input === "") {
-                    if (itemsDetails) itemsDetails.open = false;
-                    if (hierarchyDetails) hierarchyDetails.open = false;
-                }
-            }
+            });
         }
-
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
