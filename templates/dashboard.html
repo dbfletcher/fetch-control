@@ -381,18 +381,15 @@
             if (input !== "") {
                 cards.forEach(card => card.style.display = "none");
             } else {
-                // Reset to default view when search is cleared
                 cards.forEach(card => {
                     card.style.display = "";
-                    const itemsDetails = card.querySelector('.items-details');
-                    const hierarchyDetails = card.querySelector('.bin-hierarchy-details');
-                    if (itemsDetails) itemsDetails.open = false;
-                    if (hierarchyDetails) hierarchyDetails.open = false;
+                    // Close everything when search is cleared for a clean view
+                    card.querySelectorAll('details').forEach(d => d.open = false);
                 });
                 return;
             }
 
-            // 2. Search and propagate visibility upwards
+            // 2. Search and propagate visibility/expansion upwards
             cards.forEach(card => {
                 const itemRows = Array.from(card.querySelectorAll(':scope > div > .items-details .item-row'));
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
@@ -413,24 +410,25 @@
                     if (match) hasItemMatch = true;
                 });
 
-                // If the bin itself or its direct items match
                 if (binNameMatch || hasItemMatch) {
-                    card.style.display = ""; // Show this card
+                    card.style.display = ""; 
                     
-                    // Auto-expand the items list if a part matched
+                    // Auto-expand the parts list if a part matched
                     if (hasItemMatch) {
                         const itemsDetails = card.querySelector('.items-details');
                         if (itemsDetails) itemsDetails.open = true;
                     }
 
-                    // CRITICAL: Walk up and show all parents
+                    // 3. RECURSIVE EXPANSION: Walk up to the root to open all parents
                     let parent = card.parentElement;
                     while (parent && parent.id !== 'mainContent') {
+                        // If we encounter a parent bin card, make sure it's visible
                         if (parent.classList.contains('bin-card')) {
-                            parent.style.display = ""; // Ensure parent is visible
+                            parent.style.display = ""; 
                         }
+                        // If we encounter a details tag (sub-bin or item list), open it
                         if (parent.tagName === 'DETAILS') {
-                            parent.open = true; // Ensure hierarchy is open
+                            parent.open = true;
                         }
                         parent = parent.parentElement;
                     }
