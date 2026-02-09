@@ -375,37 +375,55 @@
         function filterInventory() {
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
-            const cards = Array.from(document.getElementsByClassName('bin-card'));
+            
+            // Select all key elements globally
+            const allCards = document.querySelectorAll('.bin-card');
+            const allDetails = document.querySelectorAll('details');
+            const allRows = document.querySelectorAll('.item-row');
 
-            // 1. Reset: If search is cleared, show everything and collapse details
+            // --- CASE 1: SEARCH CLEARED (Reset View) ---
             if (input === "") {
-                cards.forEach(card => {
-                    card.style.display = "";
-                    card.querySelectorAll('details').forEach(d => d.open = false);
-                    // Ensure all rows are visible for the next search
-                    card.querySelectorAll('.item-row').forEach(row => row.style.display = "flex");
-                });
+                // Show all cards and rows
+                allCards.forEach(card => card.style.display = "");
+                allRows.forEach(row => row.style.display = "flex");
+                
+                // Collapse everything to restore a clean hierarchy
+                allDetails.forEach(d => d.open = false);
                 return;
-            } else {
-                // Start by hiding all cards
-                cards.forEach(card => card.style.display = "none");
             }
 
-            // 2. Search Logic
-            cards.forEach(card => {
-                // STRICT SELECTOR: Only look for the parts list belonging to THIS card
-                // This ignores any parts lists belonging to sub-bins nested inside
-                const itemsDetails = card.querySelector(':scope > div > .items-details');
-                
-                // Safely get rows only if the list exists
-                const itemRows = itemsDetails ? Array.from(itemsDetails.querySelectorAll('.item-row')) : [];
+            // --- CASE 2: ACTIVE SEARCH ---
+            
+            // 1. "Brute Force" Expand All: Open every single bin and list immediately
+            allDetails.forEach(d => d.open = true);
 
+            // 2. Hide everything initially (we will turn matches back on)
+            allCards.forEach(c => c.style.display = "none");
+            allRows.forEach(r => r.style.display = "none");
+
+            // 3. Check for matches
+            allCards.forEach(card => {
+                // Get the Bin Name
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
-                const binNameMatch = binTitle.includes(input);
+                const isBinMatch = binTitle.includes(input);
+
+                // Find items specific to this card (ignoring sub-bins)
+                // We look at the immediate children of the wrapper div
+                let itemsDetails = null;
+                if (card.firstElementChild) {
+                    for (let child of card.firstElementChild.children) {
+                        if (child.classList.contains('items-details')) {
+                            itemsDetails = child;
+                            break;
+                        }
+                    }
+                }
+                
+                const rows = itemsDetails ? Array.from(itemsDetails.querySelectorAll('.item-row')) : [];
                 let hasItemMatch = false;
 
-                // 3. Filter Items
-                itemRows.forEach(row => {
+                // Check items inside this bin
+                rows.forEach(row => {
                     let text = row.innerText.toLowerCase();
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
@@ -415,44 +433,32 @@
                         }
                     }
                     
-                    const match = text.includes(input);
+                    const isItemMatch = text.includes(input);
                     
-                    // CONTEXT LOGIC: If Bin Name matches (e.g. "VGA"), show ALL its contents
-                    if (binNameMatch) {
+                    // Logic: Show row if the item matches OR if the Bin Name matches (Context)
+                    if (isBinMatch || isItemMatch) {
                         row.style.display = "flex";
-                    } else {
-                        row.style.display = match ? "flex" : "none";
+                        if (isItemMatch) hasItemMatch = true;
                     }
-
-                    if (match) hasItemMatch = true;
                 });
 
-                // 4. Visibility & Expansion
-                if (binNameMatch || hasItemMatch) {
-                    card.style.display = ""; 
+                // 4. Visibility Propagation (The "Show Parent" Logic)
+                if (isBinMatch || hasItemMatch) {
+                    // Show this card
+                    card.style.display = "";
 
-                    // If we found a match (either the bin name or a specific part), open the drawer
-                    if (itemsDetails) {
-                        itemsDetails.open = true;
-                    }
-
-                    // 5. Hierarchy Walker: Force all parents to open so we can see this result
+                    // Walk up the tree to ensure all PARENT bins are also visible
+                    // (Even though they are expanded, they might be display:none if they didn't match directly)
                     let parent = card.parentElement;
                     while (parent && parent.id !== 'mainContent') {
-                        // If we hit a parent Bin Card, make it visible
                         if (parent.classList.contains('bin-card')) {
-                            parent.style.display = ""; 
-                        }
-                        // If we hit a Hierarchy or Parts Details tag, force it open
-                        if (parent.tagName === 'DETAILS') {
-                            parent.open = true;
+                            parent.style.display = "";
                         }
                         parent = parent.parentElement;
                     }
                 }
             });
         }
-
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
