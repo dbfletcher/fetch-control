@@ -381,13 +381,16 @@
                 const itemRows = card.getElementsByClassName('item-row');
                 const itemsDetails = card.querySelector('.items-details');
                 const hierarchyDetails = card.querySelector('.bin-hierarchy-details');
-                let binHasMatch = false;
                 
+                let binHasMatch = false;
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
-                const binMatch = binTitle.includes(input);
+                const binNameMatch = binTitle.includes(input);
 
+                // Check individual items
                 for (let row of itemRows) {
                     let text = row.innerText.toLowerCase();
+                    
+                    // Optional metadata search for specs/URLs
                     if (includeMetadata) {
                         const editModal = row.nextElementSibling;
                         if (editModal) {
@@ -395,32 +398,34 @@
                             text += " " + (editModal.querySelector('input[type="url"]')?.value.toLowerCase() || "");
                         }
                     }
-                    const isMatch = (input.length > 0 && text.includes(input)) || binMatch;
-                    row.style.display = isMatch ? "flex" : "none";
-                    
-                    if (isMatch && input.length > 0) {
+
+                    const itemMatch = text.includes(input);
+                    row.style.display = (input === "" || itemMatch) ? "flex" : "none";
+
+                    if (itemMatch && input !== "") {
                         binHasMatch = true;
-                        // Auto-expand the parts list if a part matches
+                        // Auto-expand the parts list to show the result
                         if (itemsDetails) itemsDetails.open = true;
-                        
-                        // Recursively expand all parent bins to show this result
-                        let parent = card.parentElement;
-                        while (parent) {
-                            if (parent.tagName === 'DETAILS') parent.open = true;
-                            parent = parent.parentElement;
-                        }
                     }
                 }
 
-                // If the bin name itself matches, show it but keep children collapsed unless searching
-                if (binMatch && input.length > 0) {
-                    binHasMatch = true;
+                // Final visibility logic: Show bin if it matches OR if any item inside matches
+                const shouldShowBin = input === "" || binNameMatch || binHasMatch;
+                card.style.display = shouldShowBin ? "" : "none";
+
+                // Recursively expand all parent containers to reveal the match
+                if (shouldShowBin && input !== "") {
+                    let parent = card.parentElement;
+                    while (parent) {
+                        if (parent.tagName === 'DETAILS') {
+                            parent.open = true;
+                        }
+                        parent = parent.parentElement;
+                    }
                 }
 
-                card.style.display = (binHasMatch || binMatch || input.length === 0) ? "" : "none";
-                
-                // Reset to collapsed state if the search is cleared
-                if (input.length === 0) {
+                // Reset state when search is cleared
+                if (input === "") {
                     if (itemsDetails) itemsDetails.open = false;
                     if (hierarchyDetails) hierarchyDetails.open = false;
                 }
