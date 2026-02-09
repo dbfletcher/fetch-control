@@ -376,39 +376,42 @@
             const input = document.getElementById('globalSearch').value.toLowerCase();
             const includeMetadata = document.getElementById('searchMetadata').checked;
             
-            // Select all key elements globally
+            // Selectors
             const allCards = document.querySelectorAll('.bin-card');
-            const allDetails = document.querySelectorAll('details');
             const allRows = document.querySelectorAll('.item-row');
+            const allDetails = document.querySelectorAll('details');
+            
+            // TARGETED EXPANSION: Only select hierarchy and items, ignoring "Add New Part"
+            // This relies on the classes we added in the dashboard template
+            const contentDetails = document.querySelectorAll('.bin-hierarchy-details, .items-details');
 
             // --- CASE 1: SEARCH CLEARED (Reset View) ---
             if (input === "") {
-                // Show all cards and rows
                 allCards.forEach(card => card.style.display = "");
                 allRows.forEach(row => row.style.display = "flex");
-                
-                // Collapse everything to restore a clean hierarchy
+                // Collapse everything (including Add Part forms)
                 allDetails.forEach(d => d.open = false);
                 return;
             }
 
             // --- CASE 2: ACTIVE SEARCH ---
             
-            // 1. "Brute Force" Expand All: Open every single bin and list immediately
-            allDetails.forEach(d => d.open = true);
+            // 1. Clean Slate: Close everything first (hides any open "Add Part" forms)
+            allDetails.forEach(d => d.open = false);
 
-            // 2. Hide everything initially (we will turn matches back on)
+            // 2. Strategic Expand: Open ONLY the bin structure and parts lists
+            contentDetails.forEach(d => d.open = true);
+
+            // 3. Hide all cards initially (we turn matches back on below)
             allCards.forEach(c => c.style.display = "none");
             allRows.forEach(r => r.style.display = "none");
 
-            // 3. Check for matches
+            // 4. Match Logic
             allCards.forEach(card => {
-                // Get the Bin Name
                 const binTitle = card.querySelector('h3').innerText.toLowerCase();
                 const isBinMatch = binTitle.includes(input);
 
-                // Find items specific to this card (ignoring sub-bins)
-                // We look at the immediate children of the wrapper div
+                // Find the items list specific to THIS card
                 let itemsDetails = null;
                 if (card.firstElementChild) {
                     for (let child of card.firstElementChild.children) {
@@ -422,7 +425,6 @@
                 const rows = itemsDetails ? Array.from(itemsDetails.querySelectorAll('.item-row')) : [];
                 let hasItemMatch = false;
 
-                // Check items inside this bin
                 rows.forEach(row => {
                     let text = row.innerText.toLowerCase();
                     if (includeMetadata) {
@@ -435,20 +437,18 @@
                     
                     const isItemMatch = text.includes(input);
                     
-                    // Logic: Show row if the item matches OR if the Bin Name matches (Context)
+                    // Show row if Item matches OR Bin matches (Context)
                     if (isBinMatch || isItemMatch) {
                         row.style.display = "flex";
                         if (isItemMatch) hasItemMatch = true;
                     }
                 });
 
-                // 4. Visibility Propagation (The "Show Parent" Logic)
+                // 5. Visibility Propagation
                 if (isBinMatch || hasItemMatch) {
-                    // Show this card
                     card.style.display = "";
 
-                    // Walk up the tree to ensure all PARENT bins are also visible
-                    // (Even though they are expanded, they might be display:none if they didn't match directly)
+                    // Ensure parent bins are visible
                     let parent = card.parentElement;
                     while (parent && parent.id !== 'mainContent') {
                         if (parent.classList.contains('bin-card')) {
@@ -459,6 +459,7 @@
                 }
             });
         }
+
         function handleFileSelect(input, form) { const file = input.files[0]; if (!file) return; currentForm = form; const reader = new FileReader(); reader.onload = function(e) { document.getElementById('imageToCrop').src = e.target.result; document.getElementById('cropModal').style.display = 'flex'; if (cropper) cropper.destroy(); cropper = new Cropper(document.getElementById('imageToCrop'), { aspectRatio: NaN, viewMode: 1 }); }; reader.readAsDataURL(file); }
         function executeCrop(e) { const saveBtn = e.target; saveBtn.disabled = true; saveBtn.innerText = "Uploading..."; const canvas = cropper.getCroppedCanvas({ width: 1000, height: 1000 }); canvas.toBlob((blob) => { const formData = new FormData(currentForm); if (currentForm.action.includes('item') || currentForm.action.includes('add-item')) { formData.set('image', blob, 'item.jpg'); } else { formData.set('file', blob, 'bin.jpg'); } fetch(currentForm.action, { method: 'POST', body: formData }).then(r => window.location.reload()); }, 'image/jpeg', 0.8); }
         function cancelCrop() { document.getElementById('cropModal').style.display = 'none'; if (cropper) cropper.destroy(); }
