@@ -7,7 +7,7 @@
     {% set bin_items = items | selectattr("bin_id", "equalto", bin.id) | list %}
 
     <div class="bin-card" id="bin-{{ bin.id }}" style="margin-left: calc({{ level }} * 2px); border-left: {{ '3px solid var(--primary)' if level > 0 else 'none' }}; outline: 1px solid white; margin-bottom: 25px; scroll-margin-top: 80px; box-shadow: -2px 0 0 white;">
-        
+
         <div style="padding: 20px; border-top: 5px solid var(--primary);">
             {% if path %}
             <div style="font-size: 0.72em; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -25,7 +25,8 @@
                         <div onclick="openLightbox('/highres/{{ bin.location_image }}')" style="width:100%; height:100%; display:flex; justify-content:center; cursor: zoom-in;">
                             <img src="/lowres/{{ bin.location_image }}" title="Click for Full View" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                         </div>
-                        <form action="/delete-location-photo/{{ bin.id }}{% if zoom_id %}?zoom={{ zoom_id }}{% endif %}#bin-{{ bin.id }}" method="post" method="post" style="position:absolute; top:2px; right:2px;" onsubmit="return confirm('Delete bin photo?')">
+                        {# Fixed: Removed duplicate method="post" #}
+                        <form action="/delete-location-photo/{{ bin.id }}{% if zoom_id %}?zoom={{ zoom_id }}{% endif %}#bin-{{ bin.id }}" method="post" style="position:absolute; top:2px; right:2px;" onsubmit="return confirm('Delete bin photo?')">
                             <button type="submit" class="btn-delete-photo" style="width:20px; height:20px; font-size:12px;">×</button>
                         </form>
                     {% else %}
@@ -99,14 +100,14 @@
                                     <button type="submit" style="font-size: 0.9em; padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-weight: bold; line-height: 1;">+</button>
                                 </form>
                             </div>
-                            
+
                             {# Row 2: Status Transitions #}
                             <div style="display: flex; gap: 4px;">
-                                <button onclick="promptCheckout({{ item.id }}, '{{ item.name }}', {{ item.quantity }})" 
+                                <button onclick="promptCheckout({{ item.id }}, '{{ item.name }}', {{ item.quantity }})"
                                         style="font-size: 0.7em; padding: 4px 8px; border: 1px solid var(--primary); border-radius: 4px; cursor: pointer; background: var(--primary); color: white; text-transform: uppercase; font-weight: bold;">
                                     Out
                                 </button>
-                                <button onclick="promptCheckin({{ item.id }}, '{{ item.name }}')" 
+                                <button onclick="promptCheckin({{ item.id }}, '{{ item.name }}')"
                                         style="font-size: 0.7em; padding: 4px 8px; border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; background: var(--accent); color: white; text-transform: uppercase; font-weight: bold;">
                                     In
                                 </button>
@@ -215,10 +216,20 @@
         .sidebar.collapsed { transform: translateX(-100%); }
         .main-content.expanded { margin-left: 0 !important; }
 
-        @media (max-width: 768px) { 
-            .sidebar { transform: translateX(-100%); } 
-            .sidebar.active { transform: translateX(0); } 
-            .main-content { margin-left: 0 !important; } 
+        /* Highlighter Style for Search Results */
+        .highlight {
+            background-color: #ffeeb7; /* Soft Yellow */
+            color: #000;
+            font-weight: bold;
+            border-radius: 2px;
+            padding: 0 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0 !important; }
         }
     </style>
 </head>
@@ -263,7 +274,7 @@
         <div class="top-bar">
             <button onclick="toggleSidebar()" style="background:none; border:none; font-size:28px; cursor:pointer;">☰</button>
             <h2 style="margin: 0;">{{ household_name }}</h2>
-            
+
             <div style="display: flex; gap: 8px; margin-left: 15px;">
                 {% if zoom_id %}
                     {# Return to full household view #}
@@ -275,7 +286,7 @@
                 <button onclick="toggleAllDetails(true)" style="background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
                     Expand All
                 </button>
-                
+
                 {# Collapse All: Sets 'open' to false for a clean overview #}
                 <button onclick="toggleAllDetails(false)" style="background: #444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8em; cursor: pointer; font-weight: bold;">
                     Collapse All
@@ -287,7 +298,7 @@
                 <div style="background:var(--primary); color:white; padding:6px 15px; border-radius:25px; font-weight:bold; font-size: 0.9em;">
                     Units: {{ "{:,}".format(total_units) if total_units else "0" }}
                 </div>
-                
+
                 {# Total Value Badge #}
                 <div style="background:var(--accent); color:white; padding:6px 15px; border-radius:25px; font-weight:bold; font-size: 0.9em;">
                     Value: ${{ "{:,.2f}".format(total_value) if total_value else "0.00" }}
@@ -339,7 +350,7 @@
         function toggleSidebar() {
             const s = document.getElementById('sidebar');
             const m = document.getElementById('mainContent');
-            
+
             // If we are on a small screen (mobile)
             if (window.innerWidth <= 768) {
                 s.classList.toggle('active');
@@ -349,7 +360,7 @@
                 m.classList.toggle('expanded');
             }
         }
-        
+
         function toggleAllDetails(shouldOpen) {
             // Only toggle the inventory structure, leaving the "Add Part" forms closed
             const targets = document.querySelectorAll('.bin-hierarchy-details, .items-details');
@@ -380,38 +391,56 @@
             const allCards = document.querySelectorAll('.bin-card');
             const allRows = document.querySelectorAll('.item-row');
             const allDetails = document.querySelectorAll('details');
-            
-            // TARGETED EXPANSION: Only select hierarchy and items, ignoring "Add New Part"
-            // This relies on the classes we added in the dashboard template
+            // Only target inventory structure for expansion, ignore "Add Part" forms
             const contentDetails = document.querySelectorAll('.bin-hierarchy-details, .items-details');
+
+            // --- HELPER: REMOVE OLD HIGHLIGHTS ---
+            document.querySelectorAll('.highlight').forEach(span => {
+                const parent = span.parentNode;
+                parent.replaceChild(document.createTextNode(span.textContent), span);
+                parent.normalize(); 
+            });
 
             // --- CASE 1: SEARCH CLEARED (Reset View) ---
             if (input === "") {
                 allCards.forEach(card => card.style.display = "");
                 allRows.forEach(row => row.style.display = "flex");
-                // Collapse everything (including Add Part forms)
                 allDetails.forEach(d => d.open = false);
                 return;
             }
 
             // --- CASE 2: ACTIVE SEARCH ---
             
-            // 1. Clean Slate: Close everything first (hides any open "Add Part" forms)
+            // 1. Clean Slate: Close everything
             allDetails.forEach(d => d.open = false);
 
-            // 2. Strategic Expand: Open ONLY the bin structure and parts lists
+            // 2. Strategic Expand: Open ONLY inventory containers
             contentDetails.forEach(d => d.open = true);
 
-            // 3. Hide all cards initially (we turn matches back on below)
+            // 3. Hide everything initially
             allCards.forEach(c => c.style.display = "none");
             allRows.forEach(r => r.style.display = "none");
 
+            // --- HELPER: APPLY HIGHLIGHT ---
+            const highlightText = (element) => {
+                if (!element) return;
+                const text = element.innerText;
+                const safeInput = input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+                const regex = new RegExp(`(${safeInput})`, 'gi');
+                
+                if (text.toLowerCase().includes(input)) {
+                    element.innerHTML = text.replace(regex, '<span class="highlight">$1</span>');
+                }
+            };
+
             // 4. Match Logic
             allCards.forEach(card => {
-                const binTitle = card.querySelector('h3').innerText.toLowerCase();
+                // Bin Title Logic
+                const binTitleEl = card.querySelector('h3');
+                const binTitle = binTitleEl.innerText.toLowerCase();
                 const isBinMatch = binTitle.includes(input);
 
-                // Find the items list specific to THIS card
+                // Find items specific to THIS card
                 let itemsDetails = null;
                 if (card.firstElementChild) {
                     for (let child of card.firstElementChild.children) {
@@ -437,16 +466,24 @@
                     
                     const isItemMatch = text.includes(input);
                     
-                    // Show row if Item matches OR Bin matches (Context)
                     if (isBinMatch || isItemMatch) {
                         row.style.display = "flex";
-                        if (isItemMatch) hasItemMatch = true;
+                        if (isItemMatch) {
+                            hasItemMatch = true;
+                            // Apply Highlight to the visible Item Name
+                            const clickableName = row.querySelector('.clickable');
+                            highlightText(clickableName);
+                        }
                     }
                 });
 
-                // 5. Visibility Propagation
+                // 5. Visibility & Highlighting for Bins
                 if (isBinMatch || hasItemMatch) {
                     card.style.display = "";
+                    
+                    if (isBinMatch) {
+                        highlightText(binTitleEl);
+                    }
 
                     // Ensure parent bins are visible
                     let parent = card.parentElement;
@@ -469,12 +506,12 @@
             if (amount !== null && amount !== "" && !isNaN(amount)) {
                 // Detect current zoom state
                 const zoomId = new URLSearchParams(window.location.search).get('zoom');
-                
+
                 const form = document.createElement('form');
                 form.method = 'POST';
                 // Maintain zoom and stay at the current bin
                 form.action = `/checkout-item/${itemId}${zoomId ? '?zoom=' + zoomId : ''}`;
-                
+
                 const input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = 'amount';
@@ -499,7 +536,7 @@
 
             // 3. Ask for the return amount, showing the user the limit
             const inAmount = parseInt(prompt(`How many ${itemName} are you returning? (${outstanding} currently out)`));
-            
+
             if (isNaN(inAmount) || inAmount <= 0) return;
 
             // 4. Prevent returning more than what was checked out
@@ -517,7 +554,7 @@
                 const consumedInput = prompt(
                     `${inAmount} is less than the ${outstanding} checked out. \n\n` +
                     `How many of the remaining ${remaining} units were consumed or lost? \n` +
-                    `(Enter 0 if they are still checked out)`, 
+                    `(Enter 0 if they are still checked out)`,
                     remaining // Default to the full remainder for convenience
                 );
 
@@ -536,16 +573,16 @@
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `/checkin-item/${itemId}${zoomId ? '?zoom=' + zoomId : ''}`;
-            
+
             const fields = { 'amount': inAmount, 'consumed': consumed };
             for (const [key, value] of Object.entries(fields)) {
                 const input = document.createElement('input');
-                input.type = 'hidden'; 
-                input.name = key; 
+                input.type = 'hidden';
+                input.name = key;
                 input.value = value;
                 form.appendChild(input);
             }
-            
+
             document.body.appendChild(form);
             form.submit();
         }
@@ -565,7 +602,7 @@
                         if (parent.tagName === 'DETAILS') parent.open = true;
                         parent = parent.parentElement;
                     }
-                    
+
                     // Smoothly scroll the Indiana lab inventory to the active bin
                     targetBin.scrollIntoView({ behavior: 'smooth' });
                 }
@@ -575,14 +612,14 @@
         async function updateOutstandingBadges() {
             // Select all badge placeholders in the current view
             const badges = document.querySelectorAll('[id^="out-badge-"]');
-            
+
             for (const badge of badges) {
                 const itemId = badge.id.split('-').pop();
-                
+
                 try {
                     const response = await fetch(`/get-outstanding/${itemId}`);
                     const data = await response.json();
-                    
+
                     if (data.outstanding > 0) {
                         badge.innerText = `${data.outstanding} OUT`;
                         badge.style.display = 'inline-block';
