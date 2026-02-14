@@ -53,7 +53,7 @@
                     <label style="font-size: 0.8em; font-weight: bold; color: #666;">Nest Inside Bin</label>
                     <select name="parent_bin_id" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
                         <option value="None">-- Top Level --</option>
-                        {% for b in bins %}{% if b.id != bin.id %}<option value="{{ b.id }}" {% if bin.parent_bin_id == b.id %}selected{% endif %}>Inside: {{ b.name }}</option>{% endif %}{% endfor %}
+                        {% for b in bins %}{% if b.id != bin.id %}<option value="{{ b.id }}" {% if bin.parent_bin_id == b.id %}selected{% endif %}>Inside: {{ b.full_name }}</option>{% endif %}{% endfor %}
                     </select>
                     <div style="display:flex; gap:10px; margin-bottom: 15px;">
                         <button type="submit" class="btn-save">Update</button>
@@ -154,7 +154,7 @@
 
                             <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.8em; color:#666;">Move to Bin:</label>
                             <select name="bin_id" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
-                                {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+                                {% for b in bins %}<option value="{{ b.id }}" {% if b.id == item.bin_id %}selected{% endif %}>{{ b.full_name }}</option>{% endfor %}
                             </select>
 
                             <div style="margin-bottom:15px;">
@@ -247,7 +247,7 @@
                 <p style="font-size: 0.7em; opacity: 0.5; margin-top:20px;">New Bin</p>
                 <form action="/add-bin/{{ current_household_id }}" method="post">
                     <input type="text" name="name" placeholder="Bin Name" required>
-                    <select name="parent_bin_id"><option value="None">-- Top Level --</option>{% for b in bins %}<option value="{{ b.id }}">Inside: {{ b.name }}</option>{% endfor %}</select>
+                    <select name="parent_bin_id"><option value="None">-- Top Level --</option>{% for b in bins %}<option value="{{ b.id }}">Inside: {{ b.full_name }}</option>{% endfor %}</select>
                     <button type="submit" class="btn-save">Create</button>
                 </form>
 

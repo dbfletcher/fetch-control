@@ -250,9 +250,24 @@ async def get_bins(
         household_name = current_hh["name"]
 
     # 3. Fetch all bins sorted alphabetically
-    # This ensures your 'Prusa' or 'Cisco' gear stays in order at every depth
     bin_query = "SELECT * FROM bin WHERE household_id = :hid ORDER BY name ASC"
-    bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
+    db_bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
+
+    # Build full paths in-memory to fix ambiguous dropdown names
+    bins = [dict(b) for b in db_bins]
+    bin_dict = {b['id']: b for b in bins}
+
+    for b in bins:
+        path = []
+        curr = b
+        for _ in range(10):  # Safety depth limit
+            if not curr: break
+            path.insert(0, curr['name'])
+            curr = bin_dict.get(curr['parent_bin_id'])
+        b['full_name'] = " > ".join(path)
+
+    # Sort the list by the new full path so dropdowns are organized hierarchically
+    bins = sorted(bins, key=lambda x: x['full_name'].lower())
 
     # 4. Fetch all items for the total value calculation and rendering
     items = await database.fetch_all("""
