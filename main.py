@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from databases import Database
 from app.auth import get_current_user_email
 from PIL import Image, ImageOps
+import re
 import os
 import uuid
 import shutil
@@ -229,8 +230,8 @@ async def view_bin_qr(request: Request, bin_id: int):
 
 @app.get("/bins/{household_id}", response_class=HTMLResponse)
 async def get_bins(
-    request: Request, 
-    household_id: int, 
+    request: Request,
+    household_id: int,
     zoom: int = None,  # Parameter to trigger the "Zoom to Bin" view
     email: str = Depends(get_current_user_email)
 ):
@@ -249,38 +250,43 @@ async def get_bins(
     else:
         household_name = current_hh["name"]
 
-    # 3. Fetch all bins sorted alphabetically
-    bin_query = "SELECT * FROM bin WHERE household_id = :hid ORDER BY name ASC"
+    # 3. Fetch all bins for the household
+    bin_query = "SELECT * FROM bin WHERE household_id = :hid"
     db_bins = await database.fetch_all(query=bin_query, values={"hid": household_id})
 
-    # Build full paths in-memory to fix ambiguous dropdown names
+    # 4. Build full paths in-memory to fix ambiguous dropdown names
     bins = [dict(b) for b in db_bins]
     bin_dict = {b['id']: b for b in bins}
 
     for b in bins:
         path = []
         curr = b
-        for _ in range(10):  # Safety depth limit
+        for _ in range(10):  # Safety depth limit to prevent infinite loops
             if not curr: break
             path.insert(0, curr['name'])
             curr = bin_dict.get(curr['parent_bin_id'])
         b['full_name'] = " > ".join(path)
 
-    # Sort the list by the new full path so dropdowns are organized hierarchically
-    bins = sorted(bins, key=lambda x: x['full_name'].lower())
+    # 5. Natural Sorting Logic (e.g., Bin #2 comes before Bin #10)
+    def natural_sort_key(bin_obj):
+        # Splits the string by digits and converts numbers to actual integers
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', bin_obj['full_name'])]
 
-    # 4. Fetch all items for the total value calculation and rendering
+    # Sort the list using the natural sort key
+    bins = sorted(bins, key=natural_sort_key)
+
+    # 6. Fetch all items for the total value calculation and rendering
     items = await database.fetch_all("""
         SELECT i.* FROM items i
         JOIN bin b ON i.bin_id = b.id
         WHERE b.household_id = :hid
     """, {"hid": household_id})
 
-    # 5. Calculate total inventory value and total unit count
+    # 7. Calculate total inventory value and total unit count
     total_value = sum((item['price'] * item['quantity']) for item in items if item['price'])
-    total_units = sum(item['quantity'] for item in items) # New: Sum of all quantities
+    total_units = sum(item['quantity'] for item in items) 
 
-    # 6. Retrieve version info from the environment
+    # 8. Retrieve version info from the environment
     version = os.getenv("FETCH_VERSION", "Unknown")
 
     return templates.TemplateResponse("dashboard.html", {
